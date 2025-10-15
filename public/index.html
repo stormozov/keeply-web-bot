@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Keeply — web organizer bot</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
   </head>
   <body>
     <div id="App">
@@ -24,21 +28,32 @@
             </div>
 
             <form action="#" class="header__search-form">
-              <input
-                class="header__search-input"
-                name="search"
-                type="text"
-                autocomplete="off"
-                placeholder="Поиск сообщений"
-              />
+              <div class="header__search-wrapper">
+                <input
+                  class="header__search-input"
+                  name="search"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Поиск сообщений"
+                />
+              </div>
             </form>
 
             <div class="header__btns">
               <button class="btn btn--second-ghost header__btn" disabled>
+                <span class="btn-icon material-symbols-outlined">favorite</span>
                 Избранное
               </button>
+
               <button class="btn btn--second-ghost header__btn" disabled>
+                <span class="btn-icon material-symbols-outlined"
+                  >attach_file</span
+                >
                 Вложения
+              </button>
+
+              <button class="btn btn--second-ghost header__btn" disabled>
+                <span class="btn-icon material-symbols-outlined">settings</span>
               </button>
             </div>
           </div>
@@ -76,10 +91,14 @@
                   type="submit"
                   disabled
                 >
-                  Помощь
+                  <span class="btn-icon material-symbols-outlined"
+                    >question_mark</span
+                  >
                 </button>
                 <button class="btn btn--primary chat__btn" type="submit">
-                  Отправить
+                  <span class="btn-icon material-symbols-outlined">
+                    arrow_outward
+                  </span>
                 </button>
               </form>
             </div>
@@ -92,7 +111,9 @@
         <!-- Шапка сайдбара -->
         <header class="sidebar__header">
           <h3 class="sidebar__title">Избранное</h3>
-          <button class="sidebar__close">X</button>
+          <button class="sidebar__close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
         </header>
 
         <!-- Содержимое сайдбара -->

@@ -1,4 +1,5 @@
 @use '../utils/flex-patterns' as *;
+@use '../utils/mixins' as *;
 @use '../settings/functions' as *;
 
 .header {
@@ -46,6 +47,7 @@
   }
 
   &__search-form,
+  &__search-wrapper,
   &__search-input {
     width: size('full');
   }
@@ -54,7 +56,29 @@
     @include flex-gap(spacing('sm'));
   }
 
+  &__search-wrapper {
+    position: relative;
+
+    &::before {
+      content: 'search';
+      position: absolute;
+      top: 50%;
+      left: spacing('sm');
+      transform: translateY(-50%);
+
+      font-family: 'Material Symbols Outlined';
+      font-size: font-size('xl');
+      color: #b3b3b3;
+
+      @include material-symbol('search', $opsz: 24);
+    }
+  }
+
+  &__search-input {
+    padding: spacing('sm') spacing('sm') spacing('sm') 40px;
+  }
+
   &__btns {
-    @include flex-gap(spacing('sm'));
+    @include flex-gap(spacing('xs'));
   }
 }

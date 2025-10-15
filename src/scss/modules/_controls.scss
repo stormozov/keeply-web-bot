@@ -1,3 +1,4 @@
+@use '../utils/flex-patterns' as *;
 @use '../settings/functions' as *;
 
 a,
@@ -47,12 +48,19 @@ textarea {
 }
 
 .btn {
+  @include flex-align-center-gap(spacing('xxs'));
   padding: spacing('sm', 'md');
 
   width: max-content;
   background-color: color('transparent');
   border: 1px solid color('transparent');
   border-radius: radius('mdl');
+
+  &:not(:disabled):hover {
+    .btn-icon {
+      transform: rotate(360deg);
+    }
+  }
 
   &--primary {
     background-color: color('primary');
@@ -113,5 +121,10 @@ textarea {
       border: 1px solid color('primary');
       color: color('white');
     }
+  }
+
+  &-icon {
+    transition: all 0.3s ease-in-out;
+    font-size: 20px;
   }
 }

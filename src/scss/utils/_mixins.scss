@@ -1,0 +1,11 @@
+@mixin material-symbol($name, $fill: 0, $weight: 400, $grad: 0, $opsz: 24) {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings:
+    'FILL' #{$fill},
+    'wght' #{$weight},
+    'GRAD' #{$grad},
+    'opsz' #{$opsz};
+  content: '#{$name}';
+  display: inline-block;
+  line-height: 1;
+}
