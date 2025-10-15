@@ -39,3 +39,18 @@
   @include flex-align-center;
   gap: $gap;
 }
+
+@mixin flex-align-end {
+  @include d-flex;
+  align-items: flex-end;
+}
+
+@mixin flex-align-end-gap($gap: 1rem) {
+  @include flex-align-end;
+  gap: $gap;
+}
+
+@mixin flex-column {
+  @include d-flex;
+  flex-direction: column;
+}

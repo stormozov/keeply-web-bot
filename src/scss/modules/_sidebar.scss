@@ -16,7 +16,7 @@ body {
   margin: spacing('sm');
 
   width: component-size('sidebar');
-  height: calc(size('screen') - spacing('lg'));
+  height: calc(size('screen-h') - spacing('lg'));
   background-color: color('white');
   border: 1px solid color('border-divider');
   border-radius: radius('mdl');

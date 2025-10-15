@@ -10,8 +10,14 @@ body {
   color: color('text-primary');
 }
 
+#App {
+  height: size('screen-h');
+  display: flex;
+  flex-direction: column;
+}
+
 .container {
   padding: 0 15px;
   margin: spacing('center');
-  max-width: 1200px;
+  max-width: 1570px;
 }

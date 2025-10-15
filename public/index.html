@@ -47,8 +47,43 @@
 
       <!-- Основной контент -->
       <main class="main">
-        <div class="container">
-          <p class="empty-posts">По вашему запросу ничего не нашлось</p>
+        <div class="chat">
+          <!-- Контент чата -->
+          <div class="chat__feed">
+            <div class="container">
+              <div class="chat__content">
+                <p class="chat__empty">
+                  Сообщений нет. Начните разговор с ботом!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Форма отправки сообщений -->
+          <div class="chat__form-container">
+            <div class="container">
+              <form action="#" class="chat__form">
+                <textarea
+                  class="chat__textarea"
+                  name="chat-textarea"
+                  id="chat-textarea"
+                  placeholder="Напишите сообщение или команду..."
+                  autocomplete="off"
+                  required
+                ></textarea>
+                <button
+                  class="btn btn--secondary chat__btn"
+                  type="submit"
+                  disabled
+                >
+                  Помощь
+                </button>
+                <button class="btn btn--primary chat__btn" type="submit">
+                  Отправить
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       </main>
 

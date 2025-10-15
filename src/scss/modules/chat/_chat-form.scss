@@ -1,0 +1,31 @@
+@use '../../utils/flex-patterns' as *;
+@use '../../settings/functions' as *;
+
+.chat {
+  @include flex-column;
+  height: 100%;
+
+  &__form-container {
+    padding: spacing('sm', '0');
+  }
+
+  &__form {
+    @include flex-align-end-gap(spacing('xs'));
+
+    padding: spacing('sm');
+
+    width: size('full');
+
+    background-color: color('white');
+    border: 1px solid color('border-divider');
+    border-radius: radius('mdl');
+  }
+
+  &__textarea {
+    width: size('full');
+  }
+
+  .btn {
+    height: max-content;
+  }
+}

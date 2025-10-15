@@ -1,0 +1,17 @@
+@use '../../settings/functions' as *;
+
+.chat {
+  &__feed {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  &__empty {
+    margin-top: spacing('xl');
+
+    font-size: font-size('lg');
+    letter-spacing: 0.05rem;
+    color: color('text-third');
+    text-align: center;
+  }
+}

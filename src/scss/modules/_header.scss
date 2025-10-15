@@ -54,12 +54,6 @@
     @include flex-gap(spacing('sm'));
   }
 
-  &__search-input {
-    padding: spacing('sm', 'md');
-    border-radius: radius('mdl');
-    background-color: color('secondary');
-  }
-
   &__btns {
     @include flex-gap(spacing('sm'));
   }

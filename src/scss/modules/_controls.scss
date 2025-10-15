@@ -16,7 +16,11 @@ button {
   }
 }
 
-input {
+input,
+textarea {
+  padding: spacing('sm', 'md');
+  border-radius: radius('mdl');
+  background-color: color('secondary');
   border: 1px solid color('transparent');
 
   &:disabled {
@@ -24,6 +28,7 @@ input {
   }
 
   &::placeholder {
+    transition: all 0.3s ease-in-out;
     font-size: 0.9rem;
     color: #b3b3b3;
   }
