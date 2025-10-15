@@ -1,11 +1,17 @@
-/* body */
+@use '../settings/functions' as *;
+
 body {
   box-sizing: border-box;
-  font-family: 'Roboto', sans-serif;
-  font-size: 16px;
+
+  background-color: color('secondary');
+
+  font-family: font-family('main');
+  font-size: font-size('base');
+  color: color('text-primary');
 }
 
 .container {
-  max-width: 900px;
-  margin: 0 auto;
+  padding: 0 15px;
+  margin: spacing('center');
+  max-width: 1200px;
 }

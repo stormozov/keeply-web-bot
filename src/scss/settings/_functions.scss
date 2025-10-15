@@ -1,0 +1,77 @@
+// =============
+// Функции для работы с настройками
+// =============
+
+@use 'sass:map';
+@use 'sass:list';
+@use 'sass:meta';
+
+@use './colors' as *;
+@use './sizes' as *;
+@use './spacing' as *;
+@use './radius' as *;
+@use './typography' as *;
+
+@function color($key) {
+  @return map.get($basic-colors, $key) or map.get($neutral-colors, $key);
+}
+
+@function spacing($keys...) {
+  @if list.length($keys) == 1 and meta.type-of(list.nth($keys, 1)) == 'list' {
+    $keys: list.nth($keys, 1);
+  }
+
+  $output: ();
+
+  @each $key in $keys {
+    $value: map.get($spacing, $key);
+
+    @if $value == null {
+      @error "No spacing value found for key: #{$key}. Available keys: #{map.keys($spacing)}";
+    }
+
+    $output: list.append($output, $value);
+  }
+
+  @if list.length($output) == 1 {
+    @return list.nth($output, 1);
+  }
+
+  @return $output;
+}
+
+@function size($key) {
+  $value: map.get($sizes, $key);
+
+  @if $value == null {
+    @error "No size value found for key: #{$key}";
+  }
+
+  @return $value;
+}
+
+@function component-size($key) {
+  $value: map.get($component-sizes, $key);
+
+  @if $value == null {
+    @error "No component size value found for key: #{$key}";
+  }
+
+  @return $value;
+}
+
+@function radius($key) {
+  @return map.get($border-radius, $key);
+}
+
+@function font-family($key) {
+  @return map.get($font-families, $key);
+}
+
+@function font-size($key) {
+  @return map.get($font-sizes, $key);
+}
+
+@function font-weight($key) {
+  @return map.get($font-weights, $key);
+}

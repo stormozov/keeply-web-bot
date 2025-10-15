@@ -1,0 +1,13 @@
+@use '../settings/functions' as *;
+
+.main {
+  padding: spacing('lg' '0');
+
+  .empty-posts {
+    font-size: font-size('lg');
+    font-weight: font-weight('medium');
+    letter-spacing: 0.05rem;
+    color: color('text-third');
+    text-align: center;
+  }
+}

@@ -3,13 +3,68 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Keeply — web organizer bot</title>
   </head>
   <body>
-    <div id="root">
-      <div class="container">
-        <h1>Hello from HTML!</h1>
-      </div>
+    <div id="App">
+      <!-- Шапка сайта -->
+      <header class="header">
+        <div class="container">
+          <div class="header__content">
+            <div class="logo" title="Keeply — веб органайзер бот">
+              <img
+                src="./assets/images/robot.png"
+                class="logo__img"
+                alt="logo"
+              />
+              <div class="logo__text">
+                <span>Keeply</span>
+                <span>organizer</span>
+              </div>
+            </div>
+
+            <form action="#" class="header__search-form">
+              <input
+                class="header__search-input"
+                name="search"
+                type="text"
+                autocomplete="off"
+                placeholder="Поиск сообщений"
+              />
+            </form>
+
+            <div class="header__btns">
+              <button class="btn btn--second-ghost header__btn" disabled>
+                Избранное
+              </button>
+              <button class="btn btn--second-ghost header__btn" disabled>
+                Вложения
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Основной контент -->
+      <main class="main">
+        <div class="container">
+          <p class="empty-posts">По вашему запросу ничего не нашлось</p>
+        </div>
+      </main>
+
+      <!-- Сайдбар -->
+      <aside class="sidebar">
+        <!-- Шапка сайдбара -->
+        <header class="sidebar__header">
+          <h3 class="sidebar__title">Избранное</h3>
+          <button class="sidebar__close">X</button>
+        </header>
+
+        <!-- Содержимое сайдбара -->
+        <div class="sidebar__content">
+          <p class="sidebar__empty">Пусто</p>
+        </div>
+      </aside>
     </div>
   </body>
 </html>

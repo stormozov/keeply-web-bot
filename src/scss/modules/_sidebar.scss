@@ -1,0 +1,42 @@
+@use '../utils/flex-patterns' as *;
+@use '../settings/functions' as *;
+
+body {
+  &.sidebar-open {
+    margin-right: component-size('sidebar') + spacing('sm');
+  }
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  right: -(component-size('sidebar') + spacing('sm'));
+  transition: right 0.3s ease;
+
+  margin: spacing('sm');
+
+  width: component-size('sidebar');
+  height: calc(size('screen') - spacing('lg'));
+  background-color: color('white');
+  border: 1px solid color('border-divider');
+  border-radius: radius('mdl');
+
+  &--open {
+    right: 0;
+  }
+
+  &__header {
+    @include flex-between-center;
+    padding: spacing('lg');
+    border-bottom: 1px solid color('secondary');
+  }
+
+  &__title {
+    cursor: default;
+    color: color('text-secondary');
+  }
+
+  &__content {
+    padding: spacing('lg');
+  }
+}

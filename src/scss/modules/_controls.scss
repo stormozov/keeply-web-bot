@@ -1,0 +1,112 @@
+@use '../settings/functions' as *;
+
+a,
+button,
+input,
+input::placeholder,
+textarea {
+  transition: all 0.3s ease-in-out;
+}
+
+button {
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+input {
+  border: 1px solid color('transparent');
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+
+  &::placeholder {
+    font-size: 0.9rem;
+    color: #b3b3b3;
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 2px color('primary');
+
+    &::placeholder {
+      color: color('transparent');
+    }
+  }
+
+  &:not(:focus):not(:placeholder-shown) {
+    box-shadow: 0 0 0 2px color('border');
+  }
+}
+
+.btn {
+  padding: spacing('sm', 'md');
+
+  width: max-content;
+  background-color: color('transparent');
+  border: 1px solid color('transparent');
+  border-radius: radius('mdl');
+
+  &--primary {
+    background-color: color('primary');
+    color: color('white');
+
+    &:disabled {
+      background-color: color('secondary');
+      color: color('text-third');
+    }
+
+    &:not(:disabled):hover {
+      background-color: rgba(color('primary'), 0.25);
+      color: color('primary');
+    }
+  }
+
+  &--secondary {
+    background-color: color('secondary');
+    color: color('text-primary');
+
+    &:disabled {
+      background-color: color('secondary');
+      color: color('text-third');
+    }
+
+    &:not(:disabled):hover {
+      background-color: color('primary');
+      color: color('white');
+    }
+  }
+
+  &--primary-ghost {
+    border: 1px solid color('primary');
+    color: color('primary');
+
+    &:disabled {
+      border: 1px solid color('secondary');
+      color: color('text-third');
+    }
+
+    &:not(:disabled):hover {
+      background-color: color('primary');
+      border: 1px solid color('primary');
+      color: color('white');
+    }
+  }
+
+  &--second-ghost {
+    border: 1px solid color('secondary');
+    color: color('text-primary');
+
+    &:disabled {
+      color: color('text-third');
+    }
+
+    &:not(:disabled):hover {
+      background-color: color('primary');
+      border: 1px solid color('primary');
+      color: color('white');
+    }
+  }
+}

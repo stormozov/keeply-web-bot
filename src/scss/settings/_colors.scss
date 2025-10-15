@@ -1,0 +1,27 @@
+// =============
+// Цвета
+// =============
+
+// Основные цвета
+$basic-colors: (
+  'primary': #36a4ee,
+  'secondary': #f4f4f4,
+  'accent': #ff6b6b,
+  'success': #4caf50,
+  'warning': #ff9800,
+  'error': #f44336,
+  'info': #2196f3,
+);
+
+// Нейтральные цвета (фон, текст, границы)
+$neutral-colors: (
+  'white': #ffffff,
+  'black': #000000,
+  'text-primary': #353535,
+  'text-secondary': #969292,
+  'text-third': #c4c4c4,
+  'transparent': transparent,
+  'border': #e0e0e0,
+  'border-divider': #ebebeb,
+  'background': #fafafa,
+);

@@ -1,0 +1,41 @@
+// =============
+// Flex паттерны
+// =============
+
+@mixin d-flex {
+  display: flex;
+}
+
+@mixin flex-gap($gap: 1rem) {
+  @include d-flex;
+  gap: $gap;
+}
+
+@mixin flex-between-center {
+  @include d-flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@mixin flex-center {
+  @include d-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin flex-col-center {
+  @include d-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin flex-align-center {
+  @include d-flex;
+  align-items: center;
+}
+
+@mixin flex-align-center-gap($gap: 1rem) {
+  @include flex-align-center;
+  gap: $gap;
+}

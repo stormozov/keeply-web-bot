@@ -1,0 +1,66 @@
+@use '../utils/flex-patterns' as *;
+@use '../settings/functions' as *;
+
+.header {
+  padding: spacing('sm', 'xs');
+  margin: spacing('sm');
+  background-color: color('white');
+  border-radius: radius('mdl');
+
+  &__content {
+    @include flex-align-center-gap(spacing('lg'));
+  }
+
+  .logo {
+    cursor: default;
+    @include flex-align-center;
+    text-transform: uppercase;
+
+    &__img {
+      margin-right: spacing('sm');
+      width: 48px;
+      max-width: 48px;
+    }
+
+    &__text {
+      span {
+        display: block;
+
+        &:first-child {
+          font-size: font-size('2xl');
+          font-weight: font-weight('black');
+          letter-spacing: 0.05rem;
+          color: color('primary');
+        }
+
+        &:last-child {
+          margin-top: -(spacing('xxs'));
+
+          font-weight: font-weight('medium');
+          font-style: italic;
+          letter-spacing: 0.03rem;
+          color: color('text-third');
+        }
+      }
+    }
+  }
+
+  &__search-form,
+  &__search-input {
+    width: size('full');
+  }
+
+  &__search-form {
+    @include flex-gap(spacing('sm'));
+  }
+
+  &__search-input {
+    padding: spacing('sm', 'md');
+    border-radius: radius('mdl');
+    background-color: color('secondary');
+  }
+
+  &__btns {
+    @include flex-gap(spacing('sm'));
+  }
+}

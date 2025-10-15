@@ -102,3 +102,6 @@ typings/
 
 # webpack-bundle-analyzer stats file
 stats.json
+
+# VS Code workspace setting file
+*.code-workspace
