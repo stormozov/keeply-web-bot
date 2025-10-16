@@ -40,20 +40,37 @@
             </form>
 
             <div class="header__btns">
-              <button class="btn btn--second-ghost header__btn" disabled>
-                <span class="btn-icon material-symbols-outlined">favorite</span>
-                Избранное
+              <button
+                class="btn btn--second-ghost header__btn has-tooltip"
+                data-tooltip="Временно недоступно"
+                disabled
+              >
+                <span class="btn__icon material-symbols-outlined">
+                  favorite
+                </span>
+                <p class="btn__text">Избранное</p>
               </button>
 
-              <button class="btn btn--second-ghost header__btn" disabled>
-                <span class="btn-icon material-symbols-outlined"
-                  >attach_file</span
-                >
-                Вложения
+              <button
+                class="btn btn--second-ghost header__btn has-tooltip"
+                data-tooltip="Временно недоступно"
+                disabled
+              >
+                <span class="btn__icon material-symbols-outlined">
+                  attach_file
+                </span>
+                <p class="btn__text">Вложения</p>
               </button>
 
-              <button class="btn btn--second-ghost header__btn" disabled>
-                <span class="btn-icon material-symbols-outlined">settings</span>
+              <button
+                class="btn btn--second-ghost header__btn has-tooltip"
+                data-tooltip="Временно недоступно"
+                disabled
+              >
+                <span class="btn__icon material-symbols-outlined">
+                  settings
+                </span>
+                <p class="btn__text">Настройки</p>
               </button>
             </div>
           </div>
@@ -67,9 +84,14 @@
           <div class="chat__feed">
             <div class="container">
               <div class="chat__content">
-                <p class="chat__empty">
-                  Сообщений нет. Начните разговор с ботом!
-                </p>
+                <div class="chat__empty-block">
+                  <p class="chat__empty-text">
+                    Сообщений нет. Начните разговор с ботом!
+                  </p>
+                  <span class="chat__empty-icon material-symbols-outlined">
+                    arrow_cool_down
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -86,17 +108,24 @@
                   autocomplete="off"
                   required
                 ></textarea>
+
                 <button
-                  class="btn btn--secondary chat__btn"
+                  class="btn btn--secondary chat__btn has-tooltip"
                   type="submit"
+                  data-tooltip="Временно недоступно"
                   disabled
                 >
-                  <span class="btn-icon material-symbols-outlined"
-                    >question_mark</span
-                  >
+                  <span class="btn__icon material-symbols-outlined">
+                    question_mark
+                  </span>
                 </button>
-                <button class="btn btn--primary chat__btn" type="submit">
-                  <span class="btn-icon material-symbols-outlined">
+
+                <button
+                  class="btn btn--primary chat__btn"
+                  type="submit"
+                  data-tooltip="Отправить"
+                >
+                  <span class="btn__icon material-symbols-outlined">
                     arrow_outward
                   </span>
                 </button>

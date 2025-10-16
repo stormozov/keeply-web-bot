@@ -1,3 +1,4 @@
+@use '../../utils/flex-patterns' as *;
 @use '../../settings/functions' as *;
 
 .chat {
@@ -7,11 +8,44 @@
   }
 
   &__empty {
-    margin-top: spacing('xl');
+    &-block {
+      cursor: default;
+      @include flex-col-center;
+      margin-top: spacing('xl');
+      color: color('text-third');
+    }
 
-    font-size: font-size('lg');
-    letter-spacing: 0.05rem;
-    color: color('text-third');
-    text-align: center;
+    &-text {
+      font-size: font-size('lg');
+      letter-spacing: 0.01rem;
+    }
+
+    &-icon {
+      animation:
+        bounce 1.5s infinite ease-in-out,
+        fade 1.5s infinite ease-in-out;
+      margin-top: spacing('sm');
+      font-size: font-size('3xl');
+    }
+
+    @keyframes bounce {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(10px);
+      }
+    }
+
+    @keyframes fade {
+      0%,
+      100% {
+        opacity: 0.4;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
   }
 }

@@ -1,0 +1,15 @@
+@use '../settings/functions' as *;
+
+.tooltip {
+  padding: spacing('xxs', 'xs');
+  background: color('text-primary');
+  border-radius: spacing('xxs');
+
+  font-size: font-size('sm');
+  color: color('white');
+  white-space: nowrap;
+
+  &--visible {
+    opacity: 1;
+  }
+}

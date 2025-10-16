@@ -2,7 +2,7 @@
 @use '../../settings/functions' as *;
 
 .chat {
-  @include flex-column;
+  @include flex-col;
   height: 100%;
 
   &__form-container {

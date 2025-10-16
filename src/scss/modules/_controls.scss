@@ -57,7 +57,7 @@ textarea {
   border-radius: radius('mdl');
 
   &:not(:disabled):hover {
-    .btn-icon {
+    &__icon {
       transform: rotate(360deg);
     }
   }
@@ -123,8 +123,16 @@ textarea {
     }
   }
 
-  &-icon {
+  &__text {
+    display: none;
+
+    @media (min-width: 1024px) {
+      display: inline-block;
+    }
+  }
+
+  &__icon {
     transition: all 0.3s ease-in-out;
-    font-size: 20px;
+    font-size: font-size('xl');
   }
 }

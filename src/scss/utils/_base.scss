@@ -1,3 +1,4 @@
+@use '../utils/flex-patterns' as *;
 @use '../settings/functions' as *;
 
 body {
@@ -11,13 +12,16 @@ body {
 }
 
 #App {
+  @include flex-col;
   height: size('screen-h');
-  display: flex;
-  flex-direction: column;
 }
 
 .container {
   padding: 0 15px;
   margin: spacing('center');
   max-width: 1570px;
+}
+
+.hidden {
+  display: none;
 }

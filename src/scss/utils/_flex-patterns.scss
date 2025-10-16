@@ -6,6 +6,11 @@
   display: flex;
 }
 
+@mixin flex-col {
+  @include d-flex;
+  flex-direction: column;
+}
+
 @mixin flex-gap($gap: 1rem) {
   @include d-flex;
   gap: $gap;
@@ -24,8 +29,7 @@
 }
 
 @mixin flex-col-center {
-  @include d-flex;
-  flex-direction: column;
+  @include flex-col;
   justify-content: center;
   align-items: center;
 }
@@ -48,9 +52,4 @@
 @mixin flex-align-end-gap($gap: 1rem) {
   @include flex-align-end;
   gap: $gap;
-}
-
-@mixin flex-column {
-  @include d-flex;
-  flex-direction: column;
 }
