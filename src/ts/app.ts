@@ -1,3 +1,4 @@
+import KeeplyBot from './KeeplyBot/KeeplyBot';
 import TooltipManager from './utils/TooltipManager';
 
 /**
@@ -10,6 +11,15 @@ const tooltipInit = (): TooltipManager => {
   });
 };
 
+/**
+ * Инициализация приложения KeeplyBot
+ */
+const botInit = (): void => {
+  const bot = new KeeplyBot();
+  bot.init();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   tooltipInit();
+  botInit();
 });
