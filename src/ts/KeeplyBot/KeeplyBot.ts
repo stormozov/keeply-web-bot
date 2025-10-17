@@ -1,3 +1,4 @@
+import linkifyHtml from 'linkify-html';
 import createElement from '../utils/createElementFunction';
 import { fetchCapabilities, fetchMessages, sendMessage } from './api/api';
 import {
@@ -49,6 +50,20 @@ export default class KeeplyBot {
   private readonly _chatContent = document.querySelector('.chat__content');
   private readonly _emptyBlock = document.querySelector('.chat__empty-block');
   private readonly _skeleton = document.querySelector('.chat__skeleton');
+
+  /**
+   * Настройки для функции linkifyHtml.
+   *
+   * @private
+   *
+   * @see {@link https://linkify.js.org/docs/options.html} - Документация linkifyHtml
+   */
+  private readonly _linkifyOptions = {
+    className: 'chat__message-link',
+    rel: 'noopener noreferrer',
+    target: '_blank',
+    truncate: 50,
+  };
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
@@ -334,6 +349,7 @@ export default class KeeplyBot {
    *
    * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
    * @see {@link createElement} - Функция для создания DOM-элементов
+   * @see {@link https://linkify.js.org/} - Библиотека для автоматической обработки ссылок
    */
   private _renderMessages(messages: IUserMessageCard[]): void {
     if (!(this._chatContent instanceof HTMLElement) || !this._chatContent) {
@@ -374,7 +390,7 @@ export default class KeeplyBot {
               {
                 tag: 'p',
                 className: 'chat__message-text',
-                text: msg.message,
+                html: linkifyHtml(msg.message, this._linkifyOptions),
               },
               {
                 tag: 'time',

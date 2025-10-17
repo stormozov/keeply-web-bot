@@ -9,6 +9,29 @@ textarea {
   transition: all 0.3s ease-in-out;
 }
 
+a {
+  color: color('primary');
+
+  &::after {
+    content: '';
+
+    display: block;
+    transition: width 0.3s ease-in-out;
+
+    width: 0;
+    height: 1px;
+    background-color: color('accent');
+  }
+
+  &:hover {
+    color: color('accent');
+
+    &::after {
+      width: size('full');
+    }
+  }
+}
+
 button {
   cursor: pointer;
 

@@ -70,6 +70,8 @@
     "imagemin-webp": "^8.0.0",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",
+    "linkify-html": "^4.3.2",
+    "linkifyjs": "^4.3.2",
     "lint-staged": "^16.1.2",
     "mini-css-extract-plugin": "^2.9.2",
     "postcss": "^8.5.6",

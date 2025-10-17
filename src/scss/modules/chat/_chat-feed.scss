@@ -22,6 +22,10 @@
       }
     }
 
+    &-link {
+      display: inline-block;
+    }
+
     &-timestamp {
       display: inline-block;
       margin-top: spacing('md');
