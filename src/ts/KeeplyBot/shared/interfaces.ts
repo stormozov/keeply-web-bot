@@ -24,6 +24,15 @@ export interface IUserMessageInput {
   timestamp: number;
 }
 
+/**
+ * Интерфейс для карточек сообщений, отображаемых в чате
+ */
+export interface IUserMessageCard {
+  id: string;
+  message: string;
+  timestamp: number;
+}
+
 // =============================================================================
 // Интерфейсы для Capabilities бота, полученных от сервера по API
 // =============================================================================

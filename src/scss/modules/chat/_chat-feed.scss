@@ -5,8 +5,67 @@
   &__feed {
     flex: 1;
     overflow-y: auto;
+    max-height: calc(size('screen-h') - 72px - 3 * spacing('md') - 90px);
   }
 
+  // Блок "сообщения"
+  &__message {
+    &-item {
+      padding: spacing('md');
+      border-radius: radius('md');
+      background-color: color('white');
+
+      font-size: inherit;
+
+      &:not(:last-child) {
+        margin-bottom: spacing('xs');
+      }
+    }
+
+    &-timestamp {
+      display: inline-block;
+      margin-top: spacing('md');
+      font-size: font-size('xs');
+      color: color('text-secondary');
+    }
+  }
+
+  // Блок "Скелет загрузки данных"
+  &__skeleton {
+    &.hidden {
+      display: none;
+    }
+
+    .skeleton__item {
+      margin-bottom: spacing('md');
+      padding: spacing('md');
+      border-radius: radius('md');
+      background-color: color('bg-secondary');
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    .skeleton__text {
+      height: 16px;
+      background-color: color('text-third');
+      border-radius: radius('sm');
+      margin-bottom: spacing('xs');
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .skeleton__timestamp {
+      height: 12px;
+      width: 60%;
+      background-color: color('text-third');
+      border-radius: radius('sm');
+      animation: pulse 1.5s ease-in-out infinite;
+      animation-delay: 0.2s;
+    }
+  }
+
+  // Блок "Нет сообщений"
   &__empty {
     &-block {
       cursor: default;
@@ -47,5 +106,15 @@
         opacity: 1;
       }
     }
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
   }
 }
