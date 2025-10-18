@@ -110,6 +110,8 @@
           <div class="chat__form-container">
             <div class="container">
               <form action="#" class="chat__form">
+                <ul class="form-attachments-preview hidden"></ul>
+
                 <textarea
                   class="chat__textarea"
                   name="chat-textarea"
@@ -125,6 +127,16 @@
                 >
                   <span class="btn__icon material-symbols-outlined">
                     question_mark
+                  </span>
+                </button>
+
+                <button
+                  class="btn btn--secondary chat__btn chat__btn-attach"
+                  type="button"
+                  data-tooltip="Прикрепить файл"
+                >
+                  <span class="btn__icon material-symbols-outlined">
+                    attach_file
                   </span>
                 </button>
 

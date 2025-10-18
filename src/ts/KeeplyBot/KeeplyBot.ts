@@ -1,6 +1,12 @@
 import linkifyHtml from 'linkify-html';
+import { ICreateElementOptions } from '../shared/interfaces';
 import createElement from '../utils/createElementFunction';
-import { fetchCapabilities, fetchMessages, sendMessage } from './api/api';
+import {
+  fetchCapabilities,
+  fetchMessages,
+  sendMessage,
+  SERVER_URL,
+} from './api/api';
 import {
   IBotCapabilities,
   IBotUiStructure,
@@ -47,9 +53,16 @@ export default class KeeplyBot {
     document.querySelector('.chat__textarea');
   private readonly _chatSendButton: HTMLButtonElement | null =
     document.querySelector('.chat__btn:not(.chat__btn-help)');
+  private readonly _chatAttachButton: HTMLButtonElement | null =
+    document.querySelector('.chat__btn-attach');
+  private readonly _chatAttachmentsPreview: HTMLUListElement | null =
+    document.querySelector('.form-attachments-preview');
   private readonly _chatContent = document.querySelector('.chat__content');
   private readonly _emptyBlock = document.querySelector('.chat__empty-block');
   private readonly _skeleton = document.querySelector('.chat__skeleton');
+
+  // Состояние выбранных файлов
+  private _selectedFiles: File[] = [];
 
   /**
    * Настройки для функции linkifyHtml.
@@ -86,6 +99,7 @@ export default class KeeplyBot {
    * @description
    * - Обработка отправки сообщения через форму чата.
    * - Обработка ввода текста в поле ввода.
+   * - Обработка прикрепления файлов.
    *
    * @private
    */
@@ -107,6 +121,14 @@ export default class KeeplyBot {
       this._chatTextarea.addEventListener(
         'keydown',
         this._handleTextareaKeydown.bind(this)
+      );
+    }
+
+    // Обработка прикрепления файлов
+    if (this._chatAttachButton) {
+      this._chatAttachButton.addEventListener(
+        'click',
+        this._handleAttachButtonClick.bind(this)
       );
     }
   }
@@ -152,6 +174,9 @@ export default class KeeplyBot {
         }
       }
     }
+
+    // Установка атрибутов для sendAttachments
+    this._setSendAttachmentsAttributes(capabilities.messaging.sendAttachments);
   }
 
   /**
@@ -208,6 +233,22 @@ export default class KeeplyBot {
   }
 
   /**
+   * Устанавливает атрибуты для кнопки прикрепления файлов на основе настроек sendAttachments.
+   *
+   * @param {ICapabilitiesElementSettings} config — настройки sendAttachments из capabilities.
+   *
+   * @private
+   */
+  private _setSendAttachmentsAttributes(
+    config: ICapabilitiesElementSettings
+  ): void {
+    const element = this._botUi.messaging.sendAttachments;
+    if (element) {
+      this._updateElementState(element, config);
+    }
+  }
+
+  /**
    * Обработчик события отправки сообщения через форму чата.
    *
    * @description
@@ -226,7 +267,7 @@ export default class KeeplyBot {
     const message = this._getUserMessageFromForm();
     if (message) {
       try {
-        const response = await sendMessage(message);
+        const response = await sendMessage(message, this._selectedFiles);
         this._renderMessages(response);
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -234,7 +275,118 @@ export default class KeeplyBot {
     }
 
     this._chatForm.reset();
+    this._selectedFiles = [];
+    this._renderAttachmentsPreview();
     this._updateSendButtonState();
+  }
+
+  /**
+   * Обработчик события клика по кнопке прикрепления файла.
+   *
+   * @description
+   * Создает скрытый input для выбора файлов, настраивает его и вызывает диалог выбора.
+   *
+   * @private
+   */
+  private _handleAttachButtonClick(): void {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = true;
+
+    // Получаем настройки из capabilities
+    const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
+    if (sendAttachmentsConfig) {
+      const types = sendAttachmentsConfig.getAttribute('data-types');
+      if (types) {
+        const allowedTypes = JSON.parse(types) as string[];
+        fileInput.accept = allowedTypes.join(',');
+      }
+
+      const limit = sendAttachmentsConfig.getAttribute('data-limit');
+      if (limit) {
+        fileInput.setAttribute('data-limit', limit);
+      }
+    }
+
+    fileInput.addEventListener('change', (event) => {
+      const target = event.target as HTMLInputElement;
+      if (target.files) {
+        const files = Array.from(target.files);
+        const limit = parseInt(target.getAttribute('data-limit') || '1', 10);
+        this._selectedFiles = files.slice(0, limit);
+        this._renderAttachmentsPreview();
+      }
+    });
+
+    fileInput.click();
+  }
+
+  /**
+   * Отображает превью выбранных файлов в форме.
+   *
+   * @private
+   */
+  private _renderAttachmentsPreview(): void {
+    if (!this._chatAttachmentsPreview) return;
+
+    this._chatAttachmentsPreview.innerHTML = '';
+
+    if (this._selectedFiles.length > 0) {
+      this._chatAttachmentsPreview.classList.remove('hidden');
+    }
+
+    if (this._selectedFiles.length === 0) return;
+
+    const file = this._selectedFiles[0];
+    const previewElement = createElement({
+      tag: 'li',
+      className: 'form-attachment-preview__item',
+      children: [
+        {
+          tag: 'div',
+          className: 'form-attachments-preview__image-wrapper',
+          children: [
+            {
+              tag: 'img',
+              className: 'form-attachments-preview__image',
+              attrs: {
+                src: URL.createObjectURL(file),
+                alt: file.name,
+              },
+            },
+            {
+              tag: 'button',
+              className: 'form-attachments-preview__remove',
+              children: [
+                {
+                  tag: 'span',
+                  className: 'material-symbols-outlined',
+                  text: 'close',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          tag: 'span',
+          className: 'form-attachments-preview__name',
+          text: file.name,
+        },
+      ],
+      parent: this._chatAttachmentsPreview,
+    });
+
+    // Обработчик удаления файла
+    const removeButton = previewElement.querySelector(
+      '.form-attachments-preview__remove'
+    );
+    if (removeButton) {
+      removeButton.addEventListener('click', () => {
+        this._selectedFiles = [];
+        this._renderAttachmentsPreview();
+        this._chatAttachmentsPreview?.classList.add('hidden');
+      });
+    }
   }
 
   /**
@@ -357,7 +509,7 @@ export default class KeeplyBot {
     }
 
     // Очищаем содержимое чата
-    this._chatContent.innerHTML = '';
+    this._chatContent.replaceChildren();
 
     if (messages.length === 0) {
       // Если сообщений нет, показываем пустой блок
@@ -370,15 +522,106 @@ export default class KeeplyBot {
       this._emptyBlock.style.display = 'none';
     }
 
-    const messagesList = createElement({
-      tag: 'ul',
-      className: 'chat__messages-list',
-      parent: this._chatContent as HTMLElement,
-    });
+    const fragment = document.createDocumentFragment();
 
-    // Создаём элементы для каждого сообщения
-    messages.forEach((msg) => {
-      return createElement({
+    for (const msg of messages) {
+      const bodyChildren: ICreateElementOptions[] = [];
+
+      // Обработка файлов
+      if (msg.files?.length) {
+        const fileItems: ICreateElementOptions[] = [];
+
+        for (const file of msg.files) {
+          const fileUrl = `${SERVER_URL}${file.url}`;
+
+          if (file.mimetype.startsWith('image/')) {
+            fileItems.push({
+              tag: 'li',
+              className: ['chat__message-file', 'chat__message-file--image'],
+              children: [
+                {
+                  tag: 'img',
+                  className: ['chat__message-file-img', 'has-tooltip'],
+                  attrs: {
+                    src: fileUrl,
+                    alt: file.originalname,
+                    'data-tooltip': file.originalname,
+                  },
+                },
+                {
+                  tag: 'div',
+                  className: 'chat__message-file-download-wrap',
+                  children: [
+                    {
+                      tag: 'p',
+                      className: 'chat__message-file-size',
+                      text: String(file.size),
+                    },
+                    {
+                      tag: 'a',
+                      className: [
+                        'chat__message-file-download-icon',
+                        'material-symbols-outlined',
+                      ],
+                      attrs: { href: fileUrl, download: file.originalname },
+                      text: 'download',
+                    },
+                  ],
+                },
+              ],
+            });
+          } else if (file.mimetype.startsWith('video/')) {
+            fileItems.push({
+              tag: 'li',
+              className: 'chat__message-file',
+              children: [
+                {
+                  tag: 'video',
+                  className: 'chat__message-video',
+                  attrs: { src: fileUrl, controls: 'true' },
+                },
+              ],
+            });
+          } else if (file.mimetype.startsWith('audio/')) {
+            fileItems.push({
+              tag: 'li',
+              className: 'chat__message-file',
+              children: [
+                {
+                  tag: 'audio',
+                  className: 'chat__message-audio',
+                  attrs: { src: fileUrl, controls: 'true' },
+                },
+              ],
+            });
+          }
+          // Другие типы файлов (например, PDF, DOC) можно добавить здесь
+        }
+
+        bodyChildren.push({
+          tag: 'ul',
+          className: 'chat__message-files',
+          children: fileItems,
+        });
+      }
+
+      // Всегда добавляем текст сообщения и временную метку
+      bodyChildren.push(
+        {
+          tag: 'p',
+          className: 'chat__message-text',
+          html: linkifyHtml(msg.message, this._linkifyOptions),
+        },
+        {
+          tag: 'time',
+          className: 'chat__message-timestamp',
+          text: new Date(msg.timestamp).toLocaleString(),
+          attrs: { datetime: msg.timestamp },
+        }
+      );
+
+      // Создаём элемент сообщения
+      const messageItem = createElement({
         tag: 'li',
         className: 'chat__message-item',
         id: msg.id,
@@ -386,25 +629,20 @@ export default class KeeplyBot {
           {
             tag: 'div',
             className: 'chat__message-body',
-            children: [
-              {
-                tag: 'p',
-                className: 'chat__message-text',
-                html: linkifyHtml(msg.message, this._linkifyOptions),
-              },
-              {
-                tag: 'time',
-                className: 'chat__message-timestamp',
-                text: new Date(msg.timestamp).toLocaleString(),
-                attrs: {
-                  datetime: new Date(msg.timestamp).toISOString(),
-                },
-              },
-            ],
+            children: bodyChildren,
           },
         ],
-        parent: messagesList,
       });
+
+      fragment.append(messageItem);
+    }
+
+    // Оборачиваем все сообщения в список
+    const messagesList = createElement({
+      tag: 'ul',
+      className: 'chat__messages-list',
     });
+    messagesList.append(fragment);
+    this._chatContent.append(messagesList);
   }
 }

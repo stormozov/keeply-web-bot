@@ -3,7 +3,8 @@ import { IBotCapabilities, IUserMessageCard } from '../shared/interfaces';
 /**
  * URL-адрес сервера
  */
-const URL = process.env.SERVER_URL;
+export const SERVER_URL = process.env.SERVER_URL || 'http://localhost:7070';
+const URL = SERVER_URL;
 
 /**
  * Получение Capabilities бота от сервера
@@ -49,6 +50,7 @@ export const fetchMessages = async (): Promise<IUserMessageCard[]> => {
  * Отправка сообщения боту на сервер
  *
  * @param {string} message - Сообщение пользователя
+ * @param {File[]} files - Массив файлов для отправки
  * @returns {Promise<IUserMessageCard[]>} - Промис с массивом карточек сообщений
  * @throws {Error} - Если
  *  - запрос не удался
@@ -57,15 +59,20 @@ export const fetchMessages = async (): Promise<IUserMessageCard[]> => {
  * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
  */
 export const sendMessage = async (
-  message: string
+  message: string,
+  files: File[] = []
 ): Promise<IUserMessageCard[]> => {
   try {
+    const formData = new FormData();
+    formData.append('message', message);
+
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
     const response = await fetch(`${URL}/api/messages`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ message }),
+      body: formData,
     });
     if (!response.ok) throw new Error('Failed to send message');
     return response.json();

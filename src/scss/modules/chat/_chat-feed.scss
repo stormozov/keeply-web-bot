@@ -40,6 +40,57 @@
       font-size: font-size('xs');
       color: color('text-secondary');
     }
+
+    &-files {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(256px, 1fr));
+      gap: spacing('md');
+
+      margin-bottom: spacing('md');
+    }
+
+    &-file {
+      &--image {
+        position: relative;
+        display: block;
+
+        width: size('full');
+        max-height: 500px;
+
+        &:hover {
+          .chat__message-file-download-wrap {
+            opacity: 1;
+            z-index: 1;
+          }
+        }
+
+        .chat__message-file-download-wrap {
+          position: absolute;
+          bottom: spacing('sm');
+          right: spacing('sm');
+          opacity: 0;
+          z-index: -1;
+          transition: all 0.3s ease-in-out;
+
+          @include flex-align-center-gap(spacing('xs'));
+
+          padding: spacing('xxs') spacing('sm');
+
+          border-radius: radius('md');
+          background-color: color('white');
+          border: 1px solid color('border-divider');
+
+          font-size: font-size('xs');
+          color: color('text-secondary');
+        }
+      }
+
+      &-img {
+        width: size('full');
+        border-radius: radius('sm');
+        object-fit: cover;
+      }
+    }
   }
 
   // Блок "Скелет загрузки данных"

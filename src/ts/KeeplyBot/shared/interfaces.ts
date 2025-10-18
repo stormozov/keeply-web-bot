@@ -25,12 +25,24 @@ export interface IUserMessageInput {
 }
 
 /**
+ * Интерфейс для файла в сообщении
+ */
+export interface IMessageFile {
+  filename: string;
+  originalname: string;
+  mimetype: string;
+  size: number;
+  url: string;
+}
+
+/**
  * Интерфейс для карточек сообщений, отображаемых в чате
  */
 export interface IUserMessageCard {
   id: string;
   message: string;
-  timestamp: number;
+  files: IMessageFile[];
+  timestamp: string;
 }
 
 // =============================================================================

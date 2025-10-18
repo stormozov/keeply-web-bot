@@ -10,6 +10,7 @@
   }
 
   &__form {
+    position: relative;
     @include flex-align-end-gap(spacing('xs'));
 
     padding: spacing('sm');
@@ -27,5 +28,91 @@
 
   .btn {
     height: max-content;
+  }
+
+  // Предпросмотр прикрепленных файлов
+  .form-attachments-preview {
+    position: absolute;
+    bottom: 94px;
+    right: 0;
+    overflow-y: auto;
+    opacity: 1;
+    transition: all 0.3s ease-in-out;
+
+    @include flex-wrap-gap(spacing('xs'));
+
+    padding: spacing('sm');
+
+    max-width: 342px;
+    max-height: 286px;
+    height: max-content;
+    background-color: color('white');
+    border: 1px solid color('border-divider');
+    border-radius: radius('mdl');
+
+    &.hidden {
+      bottom: 0;
+      opacity: 0;
+      height: 0;
+      z-index: -1;
+    }
+
+    &__image-wrapper {
+      position: relative;
+      width: max-content;
+    }
+
+    &__image {
+      width: 100px;
+      max-width: 100px;
+      height: 100px;
+      border-radius: radius('sm');
+      object-fit: cover;
+    }
+
+    &__remove {
+      position: absolute;
+      top: 0;
+      right: 0;
+
+      @include flex-center;
+
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      background-color: color('accent');
+
+      font-size: inherit;
+      color: color('white');
+
+      & > .material-symbols-outlined {
+        font-size: inherit;
+        transition: all 0.3s ease-in-out;
+      }
+
+      &:hover {
+        background-color: color('primary');
+
+        & > .material-symbols-outlined {
+          transform: rotate(360deg);
+        }
+      }
+    }
+
+    &__name {
+      display: inline-block;
+      cursor: default;
+
+      margin-top: spacing('xs');
+
+      width: 100px;
+      overflow: hidden;
+
+      font-size: font-size('xs');
+      color: color('text-secondary');
+      word-break: break-all;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 }

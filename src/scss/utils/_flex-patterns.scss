@@ -53,3 +53,13 @@
   @include flex-align-end;
   gap: $gap;
 }
+
+@mixin flex-wrap {
+  @include d-flex;
+  flex-wrap: wrap;
+}
+
+@mixin flex-wrap-gap($gap: 1rem) {
+  @include flex-wrap;
+  gap: $gap;
+}
