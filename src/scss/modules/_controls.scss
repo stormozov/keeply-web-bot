@@ -10,11 +10,15 @@ textarea {
 }
 
 a {
+  position: relative;
   color: color('primary');
 
   &::after {
     content: '';
 
+    position: absolute;
+    bottom: -3px;
+    left: 0;
     display: block;
     transition: width 0.3s ease-in-out;
 

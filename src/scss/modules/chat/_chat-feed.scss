@@ -23,7 +23,15 @@
     }
 
     &-link {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+
+      &::before {
+        content: 'open_in_new';
+        font-family: 'Material Symbols Outlined';
+        margin-right: spacing('xxs');
+        font-size: inherit;
+      }
     }
 
     &-timestamp {
