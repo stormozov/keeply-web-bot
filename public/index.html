@@ -118,13 +118,9 @@
                   id="chat-textarea"
                   placeholder="Напишите сообщение или команду..."
                   autocomplete="off"
-                  required
                 ></textarea>
 
-                <button
-                  class="btn btn--secondary chat__btn chat__btn-help"
-                  type="submit"
-                >
+                <button class="btn btn--secondary chat__btn chat__btn-help">
                   <span class="btn__icon material-symbols-outlined">
                     question_mark
                   </span>
@@ -141,9 +137,10 @@
                 </button>
 
                 <button
-                  class="btn btn--primary chat__btn"
+                  class="btn btn--primary chat__btn chat__submit"
                   type="submit"
                   data-tooltip="Отправить"
+                  disabled
                 >
                   <span class="btn__icon material-symbols-outlined">
                     arrow_outward

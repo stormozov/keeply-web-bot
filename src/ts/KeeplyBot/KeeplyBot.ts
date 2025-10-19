@@ -52,7 +52,7 @@ export default class KeeplyBot {
   private readonly _chatTextarea: HTMLTextAreaElement | null =
     document.querySelector('.chat__textarea');
   private readonly _chatSendButton: HTMLButtonElement | null =
-    document.querySelector('.chat__btn:not(.chat__btn-help)');
+    document.querySelector('.chat__submit');
   private readonly _chatAttachButton: HTMLButtonElement | null =
     document.querySelector('.chat__btn-attach');
   private readonly _chatAttachmentsPreview: HTMLUListElement | null =
@@ -131,13 +131,17 @@ export default class KeeplyBot {
         this._handleAttachButtonClick.bind(this)
       );
     }
+
+    // Обработка изменения состояния файлов
+    // Добавляем слушатель для обновления состояния кнопки при изменении файлов
+    this._updateSendButtonState();
   }
 
   /**
    * Получает текущие возможности (capabilities) бота с сервера.
    *
-   * @returns {Promise<IBotCapabilities>} Объект с описанием поддерживаемых функций бота,
-   * разбитый по категориям (ui, messaging, search и т.д.).
+   * @returns {Promise<IBotCapabilities>} Объект с описанием поддерживаемых
+   * функций бота, разбитый по категориям (ui, messaging, search и т.д.).
    *
    * @see {@link IBotCapabilities} - Интерфейс для Capabilities бота
    */
@@ -265,9 +269,12 @@ export default class KeeplyBot {
     if (!this._chatForm) return;
 
     const message = this._getUserMessageFromForm();
-    if (message) {
+    const hasText = message && message.trim().length > 0;
+    const hasFiles = this._selectedFiles.length > 0;
+
+    if (hasText || hasFiles) {
       try {
-        const response = await sendMessage(message, this._selectedFiles);
+        const response = await sendMessage(message || '', this._selectedFiles);
         this._renderMessages(response);
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -277,6 +284,7 @@ export default class KeeplyBot {
     this._chatForm.reset();
     this._selectedFiles = [];
     this._renderAttachmentsPreview();
+    this._chatAttachmentsPreview?.classList.add('hidden');
     this._updateSendButtonState();
   }
 
@@ -315,6 +323,7 @@ export default class KeeplyBot {
         const limit = parseInt(target.getAttribute('data-limit') || '1', 10);
         this._selectedFiles = files.slice(0, limit);
         this._renderAttachmentsPreview();
+        this._updateSendButtonState();
       }
     });
 
@@ -331,11 +340,12 @@ export default class KeeplyBot {
 
     this._chatAttachmentsPreview.innerHTML = '';
 
-    if (this._selectedFiles.length > 0) {
-      this._chatAttachmentsPreview.classList.remove('hidden');
+    if (this._selectedFiles.length === 0) {
+      this._chatAttachmentsPreview.classList.add('hidden');
+      return;
     }
 
-    if (this._selectedFiles.length === 0) return;
+    this._chatAttachmentsPreview.classList.remove('hidden');
 
     const file = this._selectedFiles[0];
     const previewElement = createElement({
@@ -385,6 +395,7 @@ export default class KeeplyBot {
         this._selectedFiles = [];
         this._renderAttachmentsPreview();
         this._chatAttachmentsPreview?.classList.add('hidden');
+        this._updateSendButtonState();
       });
     }
   }
@@ -422,14 +433,22 @@ export default class KeeplyBot {
    * Обновляет состояние кнопки отправки сообщения.
    *
    * @description
-   * Если текст сообщения не пустой, то кнопка активна, иначе — неактивна.
+   * По умолчанию кнопка отключена. Она меняет состояние на активное, если
+   * соблюден хотя бы один из следующих условий:
+   * - Поле ввода сообщения не пустое
+   * - Количество выбранных файлов больше нуля
+   * - Поле ввода сообщения не пустое и количество выбранных файлов больше нуля
    *
    * @private
    */
   private _updateSendButtonState(): void {
     if (!this._chatSendButton || !this._chatTextarea) return;
+
     const message = this._chatTextarea.value.trim();
-    this._chatSendButton.disabled = message.length === 0;
+    const hasText = message.length > 0;
+    const hasFiles = this._selectedFiles.length > 0;
+
+    this._chatSendButton.disabled = !hasText && !hasFiles;
   }
 
   /**
