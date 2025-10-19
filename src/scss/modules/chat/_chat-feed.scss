@@ -8,6 +8,32 @@
     max-height: calc(size('screen-h') - 54px - 3 * spacing('md') - 90px);
   }
 
+  // Drag & Drop зона
+  &.drag-over {
+    .chat__feed-wrap {
+      position: relative;
+
+      &::after {
+        content: '';
+
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+
+        background-color: rgba(color('primary'), 0.1);
+        border: 2px dashed color('primary');
+        border-radius: radius('lg');
+      }
+
+      & > * {
+        opacity: 0.5;
+      }
+    }
+  }
+
   // Блок "сообщения"
   &__message {
     &-item {

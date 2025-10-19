@@ -60,9 +60,13 @@ export default class KeeplyBot {
   private readonly _chatContent = document.querySelector('.chat__content');
   private readonly _emptyBlock = document.querySelector('.chat__empty-block');
   private readonly _skeleton = document.querySelector('.chat__skeleton');
+  private readonly _chat = document.querySelector('.chat');
 
   // Состояние выбранных файлов
   private _selectedFiles: File[] = [];
+
+  // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
+  private _dragEnterCounter: number = 0;
 
   /**
    * Настройки для функции linkifyHtml.
@@ -100,6 +104,7 @@ export default class KeeplyBot {
    * - Обработка отправки сообщения через форму чата.
    * - Обработка ввода текста в поле ввода.
    * - Обработка прикрепления файлов.
+   * - Обработка Drag & Drop для загрузки файлов.
    *
    * @private
    */
@@ -131,6 +136,9 @@ export default class KeeplyBot {
         this._handleAttachButtonClick.bind(this)
       );
     }
+
+    // Обработка Drag & Drop для загрузки файлов
+    this._handleDragAndDrop();
 
     // Обработка изменения состояния файлов
     // Добавляем слушатель для обновления состояния кнопки при изменении файлов
@@ -331,6 +339,136 @@ export default class KeeplyBot {
     });
 
     fileInput.click();
+  }
+
+  /**
+   * Обработчик функционала Drag & Drop для загрузки файлов.
+   *
+   * @description
+   * Добавляет обработчики событий dragover, dragenter, dragleave и drop.
+   *
+   * @private
+   */
+  private _handleDragAndDrop(): void {
+    const dragDropTarget = this._chat || document;
+
+    dragDropTarget.addEventListener('dragover', (event) => {
+      this._handleDragOver(event as DragEvent);
+    });
+    dragDropTarget.addEventListener('dragenter', (event) => {
+      this._handleDragEnter(event as DragEvent);
+    });
+    dragDropTarget.addEventListener('dragleave', (event) => {
+      this._handleDragLeave(event as DragEvent);
+    });
+    dragDropTarget.addEventListener('drop', (event) => {
+      this._handleDrop(event as DragEvent);
+    });
+  }
+
+  /**
+   * Обработчик события dragover для чата или документа.
+   *
+   * @description
+   * Предотвращает стандартное поведение браузера и добавляет визуальную индикацию.
+   *
+   * @param {DragEvent} event - Событие dragover.
+   *
+   * @private
+   */
+  private _handleDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (this._chat) this._chat.classList.add('drag-over');
+  }
+
+  /**
+   * Обработчик события dragenter для чата или документа.
+   *
+   * @description
+   * Добавляет визуальную индикацию при входе перетаскиваемого объекта.
+   * Использует счётчик для предотвращения мерцания при входе/выходе из дочерних элементов.
+   *
+   * @param {DragEvent} event - Событие dragenter.
+   *
+   * @private
+   */
+  private _handleDragEnter(event: DragEvent): void {
+    event.preventDefault();
+
+    this._dragEnterCounter++;
+    if (this._chat && this._dragEnterCounter === 1) {
+      this._chat.classList.add('drag-over');
+    }
+  }
+
+  /**
+   * Обработчик события dragleave для чата или документа.
+   *
+   * @description
+   * Убирает визуальную индикацию при выходе перетаскиваемого объекта.
+   * Использует счётчик для предотвращения мерцания при входе/выходе из дочерних элементов.
+   *
+   * @param {DragEvent} event - Событие dragleave.
+   *
+   * @private
+   */
+  private _handleDragLeave(event: DragEvent): void {
+    event.preventDefault();
+
+    this._dragEnterCounter--;
+    if (this._chat && this._dragEnterCounter === 0) {
+      this._chat.classList.remove('drag-over');
+    }
+  }
+
+  /**
+   * Обработчик события drop для чата или документа.
+   *
+   * @description
+   * Обрабатывает сброс файлов на чат или документ, добавляет их к выбранным файлам,
+   * обновляет превью и состояние кнопки отправки.
+   *
+   * @param {DragEvent} event - Событие drop.
+   *
+   * @private
+   */
+  private _handleDrop(event: DragEvent): void {
+    event.preventDefault();
+
+    // Сбрасываем счётчик и убираем класс при drop
+    this._dragEnterCounter = 0;
+    if (this._chat) this._chat.classList.remove('drag-over');
+
+    if (event.dataTransfer?.files) {
+      const files = [...event.dataTransfer.files];
+
+      // Получаем настройки из capabilities
+      const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
+      let limit = 1;
+      if (sendAttachmentsConfig) {
+        const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
+        if (limitAttr) limit = parseInt(limitAttr, 10);
+      }
+
+      // Фильтруем файлы по типам, если заданы
+      let filteredFiles = files;
+      if (sendAttachmentsConfig) {
+        const types = sendAttachmentsConfig.getAttribute('data-types');
+        if (types) {
+          const allowedTypes = JSON.parse(types) as string[];
+          filteredFiles = files.filter((file) =>
+            allowedTypes.some((type) => file.type.match(type))
+          );
+        }
+      }
+
+      // Добавляем файлы к выбранным, соблюдая лимит
+      const selectedFiles = [...this._selectedFiles, ...filteredFiles];
+      this._selectedFiles = selectedFiles.slice(0, limit);
+
+      this._renderAttachmentsPreview();
+      this._updateSendButtonState();
+    }
   }
 
   /**

@@ -39,6 +39,7 @@
     overflow-y: auto;
     opacity: 1;
     transition: all 0.3s ease-in-out;
+    z-index: 100;
 
     @include flex-wrap-gap(spacing('xs'));
 
