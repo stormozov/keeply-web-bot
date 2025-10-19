@@ -46,7 +46,7 @@ button {
 
 input,
 textarea {
-  padding: spacing('sm', 'md');
+  padding: spacing('xs', 'sm');
   border-radius: radius('mdl');
   background-color: color('secondary');
   border: 1px solid color('transparent');
@@ -76,12 +76,14 @@ textarea {
 
 .btn {
   @include flex-align-center-gap(spacing('xxs'));
-  padding: spacing('sm', 'md');
+  padding: spacing('xs', 'sm');
 
   width: max-content;
   background-color: color('transparent');
   border: 1px solid color('transparent');
   border-radius: radius('mdl');
+
+  font-size: font-size('xs');
 
   &:not(:disabled):hover {
     &__icon {

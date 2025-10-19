@@ -3,6 +3,7 @@
 
 .chat {
   @include flex-col;
+  justify-content: space-between;
   height: 100%;
 
   &__form-container {
@@ -33,7 +34,7 @@
   // Предпросмотр прикрепленных файлов
   .form-attachments-preview {
     position: absolute;
-    bottom: 94px;
+    bottom: 85px;
     right: 0;
     overflow-y: auto;
     opacity: 1;

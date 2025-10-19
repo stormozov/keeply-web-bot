@@ -5,7 +5,7 @@
   &__feed {
     flex: 1;
     overflow-y: auto;
-    max-height: calc(size('screen-h') - 72px - 3 * spacing('md') - 90px);
+    max-height: calc(size('screen-h') - 54px - 3 * spacing('md') - 90px);
   }
 
   // Блок "сообщения"
