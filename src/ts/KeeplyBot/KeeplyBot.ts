@@ -321,7 +321,10 @@ export default class KeeplyBot {
       if (target.files) {
         const files = Array.from(target.files);
         const limit = parseInt(target.getAttribute('data-limit') || '1', 10);
-        this._selectedFiles = files.slice(0, limit);
+        const selectedFiles = [...this._selectedFiles, ...files];
+
+        this._selectedFiles = selectedFiles.slice(0, limit);
+
         this._renderAttachmentsPreview();
         this._updateSendButtonState();
       }
@@ -347,57 +350,58 @@ export default class KeeplyBot {
 
     this._chatAttachmentsPreview.classList.remove('hidden');
 
-    const file = this._selectedFiles[0];
-    const previewElement = createElement({
-      tag: 'li',
-      className: 'form-attachment-preview__item',
-      children: [
-        {
-          tag: 'div',
-          className: 'form-attachments-preview__image-wrapper',
-          children: [
-            {
-              tag: 'img',
-              className: 'form-attachments-preview__image',
-              attrs: {
-                src: URL.createObjectURL(file),
-                alt: file.name,
-              },
-            },
-            {
-              tag: 'button',
-              className: 'form-attachments-preview__remove',
-              children: [
-                {
-                  tag: 'span',
-                  className: 'material-symbols-outlined',
-                  text: 'close',
+    this._selectedFiles.forEach((file, index) => {
+      if (!this._chatAttachmentsPreview) return;
+      const previewElement = createElement({
+        tag: 'li',
+        className: 'form-attachment-preview__item',
+        children: [
+          {
+            tag: 'div',
+            className: 'form-attachments-preview__image-wrapper',
+            children: [
+              {
+                tag: 'img',
+                className: 'form-attachments-preview__image',
+                attrs: {
+                  src: URL.createObjectURL(file),
+                  alt: file.name,
                 },
-              ],
-            },
-          ],
-        },
-        {
-          tag: 'span',
-          className: 'form-attachments-preview__name',
-          text: file.name,
-        },
-      ],
-      parent: this._chatAttachmentsPreview,
-    });
-
-    // Обработчик удаления файла
-    const removeButton = previewElement.querySelector(
-      '.form-attachments-preview__remove'
-    );
-    if (removeButton) {
-      removeButton.addEventListener('click', () => {
-        this._selectedFiles = [];
-        this._renderAttachmentsPreview();
-        this._chatAttachmentsPreview?.classList.add('hidden');
-        this._updateSendButtonState();
+              },
+              {
+                tag: 'button',
+                className: 'form-attachments-preview__remove',
+                children: [
+                  {
+                    tag: 'span',
+                    className: 'material-symbols-outlined',
+                    text: 'close',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            tag: 'span',
+            className: 'form-attachments-preview__name',
+            text: file.name,
+          },
+        ],
+        parent: this._chatAttachmentsPreview,
       });
-    }
+
+      // Обработчик удаления файла
+      const removeButton = previewElement.querySelector(
+        '.form-attachments-preview__remove'
+      );
+      if (removeButton) {
+        removeButton.addEventListener('click', () => {
+          this._selectedFiles.splice(index, 1);
+          this._renderAttachmentsPreview();
+          this._updateSendButtonState();
+        });
+      }
+    });
   }
 
   /**
