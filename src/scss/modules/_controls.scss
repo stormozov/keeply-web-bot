@@ -38,9 +38,21 @@ a {
 
 button {
   cursor: pointer;
+  padding: 0;
 
   &:disabled {
     cursor: not-allowed;
+  }
+
+  &.link-btn {
+    @include flex-align-center-gap(spacing('xxs'));
+
+    background-color: color('transparent');
+    border: 1px solid color('transparent');
+
+    &:not(:disabled):hover {
+      color: color('primary');
+    }
   }
 }
 

@@ -760,6 +760,49 @@ export default class KeeplyBot {
   }
 
   /**
+   * Обработчик клика по кнопке скачивания файла.
+   *
+   * @param {Event} event - Событие клика.
+   *
+   * @private
+   */
+  private async _handleDownloadClick(event: Event): Promise<void> {
+    event.preventDefault();
+
+    // Проверяем, что клик был совершен по кнопке скачивания
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest(
+      '.chat__message-file-download'
+    ) as HTMLElement;
+    if (!button) return;
+
+    // Получаем URL и имя файла из атрибутов кнопки
+    const url = button.getAttribute('data-url');
+    const filename = button.getAttribute('data-filename') || 'file';
+
+    if (!url) return;
+
+    try {
+      // Используем fetch для скачивания файла
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+
+      document.body.append(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    }
+  }
+
+  /**
    * Отображает массив сообщений в UI чата.
    *
    * @param {IUserMessageCard[]} messages — массив сообщений с сервера.
@@ -828,21 +871,38 @@ export default class KeeplyBot {
                 },
                 {
                   tag: 'div',
-                  className: 'chat__message-file-download-wrap',
+                  className: 'chat__message-file-info',
                   children: [
                     {
                       tag: 'p',
-                      className: 'chat__message-file-size',
+                      className: ['chat__message-file-size', 'has-tooltip'],
                       text: String(file.size),
+                      attrs: {
+                        'data-tooltip': 'Размер аудиофайла',
+                      },
                     },
                     {
-                      tag: 'a',
-                      className: [
-                        'chat__message-file-download-icon',
-                        'material-symbols-outlined',
+                      tag: 'button',
+                      className: ['link-btn', 'chat__message-file-download'],
+                      attrs: {
+                        'data-url': fileUrl,
+                        'data-filename': file.originalname,
+                      },
+                      children: [
+                        {
+                          tag: 'span',
+                          className: 'material-symbols-outlined',
+                          text: 'download',
+                        },
+                        {
+                          tag: 'span',
+                          className: 'link-btn__text',
+                          text: 'Скачать',
+                        },
                       ],
-                      attrs: { href: fileUrl, download: file.originalname },
-                      text: 'download',
+                      events: {
+                        click: this._handleDownloadClick.bind(this),
+                      },
                     },
                   ],
                 },
@@ -851,12 +911,49 @@ export default class KeeplyBot {
           } else if (file.mimetype.startsWith('video/')) {
             videoItems.push({
               tag: 'li',
-              className: 'chat__message-file',
+              className: ['chat__message-file', 'chat__message-file--video'],
               children: [
                 {
                   tag: 'video',
                   className: 'chat__message-video',
                   attrs: { src: fileUrl, controls: 'true' },
+                },
+                {
+                  tag: 'div',
+                  className: 'chat__message-file-info',
+                  children: [
+                    {
+                      tag: 'span',
+                      className: ['chat__message-file-size', 'has-tooltip'],
+                      text: String(file.size),
+                      attrs: {
+                        'data-tooltip': 'Размер видеофайла',
+                      },
+                    },
+                    {
+                      tag: 'button',
+                      className: ['link-btn', 'chat__message-file-download'],
+                      attrs: {
+                        'data-url': fileUrl,
+                        'data-filename': file.originalname,
+                      },
+                      children: [
+                        {
+                          tag: 'span',
+                          className: 'material-symbols-outlined',
+                          text: 'download',
+                        },
+                        {
+                          tag: 'span',
+                          className: 'link-btn__text',
+                          text: 'Скачать',
+                        },
+                      ],
+                      events: {
+                        click: this._handleDownloadClick.bind(this),
+                      },
+                    },
+                  ],
                 },
               ],
             });
@@ -878,27 +975,20 @@ export default class KeeplyBot {
                       },
                     },
                     {
-                      tag: 'div',
+                      tag: 'p',
                       className: ['chat__message-file-size', 'has-tooltip'],
+                      text: String(file.size),
                       attrs: {
                         'data-tooltip': 'Размер аудиофайла',
                       },
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'play_for_work',
-                        },
-                        {
-                          tag: 'span',
-                          text: String(file.size),
-                        },
-                      ],
                     },
                     {
-                      tag: 'a',
-                      className: 'chat__message-file-download',
-                      attrs: { href: fileUrl, download: file.originalname },
+                      tag: 'button',
+                      className: ['link-btn', 'chat__message-file-download'],
+                      attrs: {
+                        'data-url': fileUrl,
+                        'data-filename': file.originalname,
+                      },
                       children: [
                         {
                           tag: 'span',
@@ -907,9 +997,13 @@ export default class KeeplyBot {
                         },
                         {
                           tag: 'span',
+                          className: 'link-btn__text',
                           text: 'Скачать',
                         },
                       ],
+                      events: {
+                        click: this._handleDownloadClick.bind(this),
+                      },
                     },
                   ],
                 },

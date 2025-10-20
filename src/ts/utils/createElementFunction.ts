@@ -12,6 +12,7 @@ import { ICreateElementOptions } from '../shared/interfaces';
  * @param {Record<string, string>} options.attrs - Атрибуты элемента
  * @param {(HTMLElement | string | ICreateElementOptions)[]} options.children - Дочерние элементы
  * @param {HTMLElement | null} options.parent - Родительский элемент
+ * @param {Record<string, EventListener>} options.events - Обработчики событий
  *
  * @returns {HTMLElement} Созданный DOM-элемент
  */
@@ -24,6 +25,7 @@ export default function createElement({
   attrs = {},
   children = [],
   parent,
+  events,
 }: ICreateElementOptions = {}): HTMLElement {
   const element = document.createElement(tag);
 
@@ -42,6 +44,12 @@ export default function createElement({
   Object.entries(attrs).forEach(([key, value]) => {
     element.setAttribute(key, value);
   });
+
+  if (events) {
+    Object.entries(events).forEach(([event, handler]) => {
+      element.addEventListener(event, handler);
+    });
+  }
 
   element.append(
     ...children.map((child) =>

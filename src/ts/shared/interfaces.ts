@@ -42,4 +42,9 @@ export interface ICreateElementOptions {
    * Родительский элемент, к которому будет добавлен созданный элемент
    */
   parent?: HTMLElement;
+
+  /**
+   * Обработчики событий для элемента
+   */
+  events?: Record<string, EventListener>;
 }
