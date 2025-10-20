@@ -58,6 +58,7 @@ export default class KeeplyBot {
   private readonly _chatAttachmentsPreview: HTMLElement | null =
     document.querySelector('.form-att-prev');
   private readonly _chatContent = document.querySelector('.chat__content');
+  private readonly _chatFeedWrap = document.querySelector('.chat__feed-wrap');
   private readonly _emptyBlock = document.querySelector('.chat__empty-block');
   private readonly _skeleton = document.querySelector('.chat__skeleton');
   private readonly _chat = document.querySelector('.chat');
@@ -294,6 +295,7 @@ export default class KeeplyBot {
       try {
         const response = await sendMessage(message || '', allFiles);
         this._renderMessages(response);
+        this._scrollToBottom(); // Прокручиваем до последнего сообщения
       } catch (error) {
         console.error('Failed to send message:', error);
       }
@@ -721,6 +723,7 @@ export default class KeeplyBot {
    * 2. Загружает сообщения с сервера.
    * 3. Отображает сообщения в UI чата.
    * 4. Скрывает скелетон загрузки.
+   * 5. Прокручивает чат до последнего сообщения.
    *
    * @returns {Promise<void>} Промис, который разрешается, когда загрузка сообщений завершена.
    *
@@ -731,6 +734,7 @@ export default class KeeplyBot {
     try {
       const messages = await fetchMessages();
       this._renderMessages(messages);
+      this._scrollToBottom(); // Прокручиваем до последнего сообщения
     } catch (error) {
       console.error('Failed to load messages:', error);
       this._renderMessages([]);
@@ -747,6 +751,16 @@ export default class KeeplyBot {
   private _showSkeleton(): void {
     if (!this._chatContent || !this._skeleton) return;
     this._skeleton.classList.remove('hidden');
+  }
+
+  /**
+   * Прокручивает чат до самого последнего сообщения.
+   *
+   * @private
+   */
+  private _scrollToBottom(): void {
+    if (!this._chatFeedWrap) return;
+    this._chatFeedWrap.scrollTop = this._chatFeedWrap.scrollHeight;
   }
 
   /**
