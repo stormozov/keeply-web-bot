@@ -26,17 +26,24 @@ export const fetchCapabilities = async (): Promise<IBotCapabilities> => {
 };
 
 /**
- * Получение всех сообщений с сервера
+ * Получение сообщений с сервера с пагинацией
  *
+ * @param {number} offset - Количество сообщений, которые нужно пропустить (для пагинации)
+ * @param {number} limit - Максимальное количество сообщений для загрузки
  * @returns {Promise<IUserMessageCard[]>} - Массив сообщений в формате IUserMessageCard
  *
  * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
  */
-export const fetchMessages = async (): Promise<IUserMessageCard[]> => {
+export const fetchMessages = async (
+  offset: number = 0,
+  limit: number = 10
+): Promise<IUserMessageCard[]> => {
   let messages: IUserMessageCard[] = [];
 
   try {
-    const response = await fetch(`${URL}/api/messages`);
+    const response = await fetch(
+      `${URL}/api/messages?offset=${offset}&limit=${limit}`
+    );
     if (!response.ok) messages = [];
     messages = await response.json();
   } catch {

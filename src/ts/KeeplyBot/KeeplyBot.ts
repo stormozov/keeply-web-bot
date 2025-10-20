@@ -68,6 +68,14 @@ export default class KeeplyBot {
   private _selectedVideos: File[] = [];
   private _selectedAudios: File[] = [];
 
+  // Состояние для ленивой подгрузки сообщений
+  private _loadedMessages: IUserMessageCard[] = [];
+  private _currentOffset: number = 0;
+  private _isLoadingMore: boolean = false;
+  private _hasMoreMessages: boolean = true;
+  private readonly _scrollThreshold = 50;
+  private readonly _messagePerPage = 10;
+
   // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
   private _dragEnterCounter: number = 0;
 
@@ -108,6 +116,7 @@ export default class KeeplyBot {
    * - Обработка ввода текста в поле ввода.
    * - Обработка прикрепления файлов.
    * - Обработка Drag & Drop для загрузки файлов.
+   * - Обработка прокрутки для ленивой подгрузки сообщений.
    *
    * @private
    */
@@ -142,6 +151,14 @@ export default class KeeplyBot {
 
     // Обработка Drag & Drop для загрузки файлов
     this._handleDragAndDrop();
+
+    // Обработка прокрутки для ленивой подгрузки
+    if (this._chatFeedWrap) {
+      this._chatFeedWrap.addEventListener(
+        'scroll',
+        this._handleLazyScroll.bind(this)
+      );
+    }
 
     // Обработка изменения состояния файлов
     // Добавляем слушатель для обновления состояния кнопки при изменении файлов
@@ -294,7 +311,17 @@ export default class KeeplyBot {
     if (hasText || hasFiles) {
       try {
         const response = await sendMessage(message || '', allFiles);
-        this._renderMessages(response);
+
+        // После отправки показываем последние 10 сообщений для поддержания
+        // ленивой подгрузки
+        this._loadedMessages = response.slice(-this._messagePerPage);
+        this._currentOffset = Math.max(
+          0,
+          response.length - this._messagePerPage
+        );
+        this._hasMoreMessages = response.length > this._messagePerPage;
+
+        this._renderMessages(this._loadedMessages);
         this._scrollToBottom(); // Прокручиваем до последнего сообщения
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -720,7 +747,7 @@ export default class KeeplyBot {
    *
    * @description
    * 1. Показывает скелетон загрузки.
-   * 2. Загружает сообщения с сервера.
+   * 2. Загружает последние 10 сообщений с сервера.
    * 3. Отображает сообщения в UI чата.
    * 4. Скрывает скелетон загрузки.
    * 5. Прокручивает чат до последнего сообщения.
@@ -732,8 +759,13 @@ export default class KeeplyBot {
   private async _loadMessages(): Promise<void> {
     this._showSkeleton();
     try {
-      const messages = await fetchMessages();
-      this._renderMessages(messages);
+      const messages = await fetchMessages(0, this._messagePerPage);
+
+      // Обновляем массив сообщений
+      this._loadedMessages = messages;
+      this._currentOffset = 10;
+
+      this._renderMessages(this._loadedMessages);
       this._scrollToBottom(); // Прокручиваем до последнего сообщения
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -771,6 +803,71 @@ export default class KeeplyBot {
   private _hideSkeleton(): void {
     if (!this._skeleton) return;
     this._skeleton.classList.add('hidden');
+  }
+
+  /**
+   * Обработчик события прокрутки чата для ленивой подгрузки сообщений.
+   *
+   * @description
+   * При прокрутке вверх до верхней границы загружает следующие 10 сообщений.
+   *
+   * @param {Event} event - Событие прокрутки.
+   *
+   * @private
+   */
+  private async _handleLazyScroll(event: Event): Promise<void> {
+    if (
+      this._isLoadingMore ||
+      !this._chatFeedWrap ||
+      !this._hasMoreMessages ||
+      !(event.target instanceof HTMLElement)
+    ) {
+      return;
+    }
+
+    const target = event.target;
+    const scrollTop = target.scrollTop;
+
+    // Если прокрутили вверх до верхней границы (с небольшим отступом)
+    if (scrollTop > this._scrollThreshold) return;
+
+    this._isLoadingMore = true;
+
+    try {
+      const newMessages = await fetchMessages(
+        this._currentOffset,
+        this._messagePerPage
+      );
+
+      if (newMessages.length === 0) {
+        this._hasMoreMessages = false;
+        return;
+      }
+
+      // Сохраняем текущую высоту скролла перед добавлением новых сообщений
+      const oldScrollHeight = target.scrollHeight;
+
+      // Добавляем новые сообщения в начало массива
+      this._loadedMessages = [...newMessages, ...this._loadedMessages];
+      this._currentOffset += this._messagePerPage;
+      this._renderMessages(this._loadedMessages);
+
+      // Восстанавливаем позицию прокрутки после добавления новых сообщений
+      this._restoreScrollPosition(target, oldScrollHeight, scrollTop);
+    } catch (error) {
+      console.error('Failed to load more messages:', error);
+    } finally {
+      this._isLoadingMore = false;
+    }
+  }
+
+  private _restoreScrollPosition(
+    target: HTMLElement,
+    oldScrollHeight: number,
+    scrollTop: number
+  ): void {
+    const newScrollHeight = target.scrollHeight;
+    target.scrollTop = newScrollHeight - oldScrollHeight + scrollTop;
   }
 
   /**
