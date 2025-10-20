@@ -74,6 +74,10 @@ textarea {
   }
 }
 
+audio::-webkit-media-controls-enclosure {
+  border-radius: radius('sm');
+}
+
 .btn {
   @include flex-align-center-gap(spacing('xxs'));
   padding: spacing('xs', 'sm');

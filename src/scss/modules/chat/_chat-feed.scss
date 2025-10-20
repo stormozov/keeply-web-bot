@@ -1,8 +1,9 @@
+@use '../../utils/mixins' as mixins;
 @use '../../utils/flex-patterns' as *;
 @use '../../settings/functions' as *;
 
 .chat {
-  &__feed {
+  &__feed-wrap {
     flex: 1;
     overflow-y: auto;
     max-height: calc(size('screen-h') - 54px - 3 * spacing('md') - 90px);
@@ -44,8 +45,12 @@
       font-size: inherit;
 
       &:not(:last-child) {
-        margin-bottom: spacing('xs');
+        margin-bottom: spacing('md');
       }
+    }
+
+    &-text {
+      margin-bottom: spacing('lg');
     }
 
     &-link {
@@ -60,28 +65,31 @@
       }
     }
 
-    &-timestamp {
-      display: inline-block;
-      margin-top: spacing('md');
-      font-size: font-size('xs');
-      color: color('text-secondary');
+    &-files-section {
+      margin-bottom: spacing('md');
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    &-files-title {
+      @include mixins.files-section-title;
     }
 
     &-files {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(256px, 1fr));
-      gap: spacing('md');
-
-      margin-bottom: spacing('md');
+      &--images,
+      &--videos {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: spacing('xxs');
+      }
     }
 
     &-file {
       &--image {
         position: relative;
         display: block;
-
-        width: size('full');
-        max-height: 500px;
 
         &:hover {
           .chat__message-file-download-wrap {
@@ -111,11 +119,66 @@
         }
       }
 
+      &--audio {
+        padding: spacing('sm');
+        border-radius: radius('md');
+        border: 1px solid color('border-divider');
+
+        &:not(:last-child) {
+          margin-bottom: spacing('xxs');
+        }
+
+        .chat__message-file-info {
+          @include flex-align-center-gap(spacing('sm'));
+          margin-bottom: spacing('sm');
+
+          & > * {
+            &:not(:last-child) {
+              &::after {
+                content: '|';
+                margin-left: spacing('sm');
+                color: color('text-secondary');
+              }
+            }
+          }
+        }
+
+        .chat__message-file-name {
+          @include flex-align-center;
+        }
+
+        .chat__message-file-size {
+          @include flex-align-center;
+        }
+
+        .chat__message-file-download {
+          @include flex-align-center-gap(spacing('xxs'));
+        }
+      }
+
       &-img {
         width: size('full');
+        height: 262px;
         border-radius: radius('sm');
         object-fit: cover;
       }
+    }
+
+    &-video {
+      width: size('full');
+      height: 262px;
+      border-radius: radius('sm');
+    }
+
+    &-audio {
+      width: size('full');
+    }
+
+    &-timestamp {
+      display: inline-block;
+      margin-top: spacing('md');
+      font-size: font-size('xs');
+      color: color('text-secondary');
     }
   }
 

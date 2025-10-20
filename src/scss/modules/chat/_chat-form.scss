@@ -1,3 +1,4 @@
+@use '../../utils/mixins' as mixins;
 @use '../../utils/flex-patterns' as *;
 @use '../../settings/functions' as *;
 
@@ -31,8 +32,8 @@
     height: max-content;
   }
 
-  // Предпросмотр прикрепленных файлов
-  .form-attachments-preview {
+  // Предпросмотр прикрепленных файлов
+  .form-att-prev {
     position: absolute;
     bottom: 85px;
     right: 0;
@@ -41,12 +42,12 @@
     transition: all 0.3s ease-in-out;
     z-index: 100;
 
-    @include flex-wrap-gap(spacing('xs'));
+    @include flex-col-gap(spacing('sm'));
 
     padding: spacing('sm');
 
-    max-width: 342px;
-    max-height: 286px;
+    max-width: 362px;
+    max-height: 400px;
     height: max-content;
     background-color: color('white');
     border: 1px solid color('border-divider');
@@ -59,9 +60,57 @@
       z-index: -1;
     }
 
+    &__section {
+      @include flex-col;
+
+      &:not(:last-child) {
+        padding-bottom: spacing('sm');
+        border-bottom: 1px solid color('border-divider');
+      }
+
+      &--images {
+        .form-attachments-preview__list {
+          @include flex-wrap-gap(spacing('xs'));
+        }
+      }
+
+      &--videos,
+      &--audios {
+        .form-attachments-preview__list {
+          display: flex;
+          flex-direction: column;
+          gap: spacing('xs');
+        }
+      }
+    }
+
+    &__section-title {
+      @include mixins.files-section-title;
+    }
+
+    &__list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: spacing('xs');
+    }
+
     &__image-wrapper {
       position: relative;
       width: max-content;
+    }
+
+    &__file-icon {
+      @include flex-center;
+
+      width: 100px;
+      height: 100px;
+      background-color: color('secondary');
+      border-radius: radius('sm');
+
+      .material-symbols-outlined {
+        font-size: font-size('3xl');
+        color: color('text-secondary');
+      }
     }
 
     &__image {

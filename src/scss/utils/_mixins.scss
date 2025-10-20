@@ -1,3 +1,5 @@
+@use '../settings/functions' as *;
+
 @mixin material-symbol($name, $fill: 0, $weight: 400, $grad: 0, $opsz: 24) {
   font-family: 'Material Symbols Outlined';
   font-variation-settings:
@@ -8,4 +10,22 @@
   content: '#{$name}';
   display: inline-block;
   line-height: 1;
+}
+
+@mixin files-section-title {
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: spacing('xxs');
+
+  margin-bottom: spacing('sm');
+
+  font-size: font-size('xs');
+  font-weight: 500;
+  letter-spacing: 0.02rem;
+  color: color('text-secondary');
+
+  .material-symbols-outlined {
+    font-size: font-size('base');
+  }
 }

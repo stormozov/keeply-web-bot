@@ -55,15 +55,17 @@ export default class KeeplyBot {
     document.querySelector('.chat__submit');
   private readonly _chatAttachButton: HTMLButtonElement | null =
     document.querySelector('.chat__btn-attach');
-  private readonly _chatAttachmentsPreview: HTMLUListElement | null =
-    document.querySelector('.form-attachments-preview');
+  private readonly _chatAttachmentsPreview: HTMLElement | null =
+    document.querySelector('.form-att-prev');
   private readonly _chatContent = document.querySelector('.chat__content');
   private readonly _emptyBlock = document.querySelector('.chat__empty-block');
   private readonly _skeleton = document.querySelector('.chat__skeleton');
   private readonly _chat = document.querySelector('.chat');
 
-  // Состояние выбранных файлов
-  private _selectedFiles: File[] = [];
+  // Состояние выбранных файлов по типам
+  private _selectedImages: File[] = [];
+  private _selectedVideos: File[] = [];
+  private _selectedAudios: File[] = [];
 
   // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
   private _dragEnterCounter: number = 0;
@@ -278,11 +280,19 @@ export default class KeeplyBot {
 
     const message = this._getUserMessageFromForm();
     const hasText = message && message.trim().length > 0;
-    const hasFiles = this._selectedFiles.length > 0;
+    const hasFiles =
+      this._selectedImages.length > 0 ||
+      this._selectedVideos.length > 0 ||
+      this._selectedAudios.length > 0;
+    const allFiles = [
+      ...this._selectedImages,
+      ...this._selectedVideos,
+      ...this._selectedAudios,
+    ];
 
     if (hasText || hasFiles) {
       try {
-        const response = await sendMessage(message || '', this._selectedFiles);
+        const response = await sendMessage(message || '', allFiles);
         this._renderMessages(response);
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -290,7 +300,9 @@ export default class KeeplyBot {
     }
 
     this._chatForm.reset();
-    this._selectedFiles = [];
+    this._selectedImages = [];
+    this._selectedVideos = [];
+    this._selectedAudios = [];
     this._renderAttachmentsPreview();
     this._chatAttachmentsPreview?.classList.add('hidden');
     this._updateSendButtonState();
@@ -328,11 +340,7 @@ export default class KeeplyBot {
       const target = event.target as HTMLInputElement;
       if (target.files) {
         const files = Array.from(target.files);
-        const limit = parseInt(target.getAttribute('data-limit') || '1', 10);
-        const selectedFiles = [...this._selectedFiles, ...files];
-
-        this._selectedFiles = selectedFiles.slice(0, limit);
-
+        this._addFilesToCategories(files);
         this._renderAttachmentsPreview();
         this._updateSendButtonState();
       }
@@ -444,11 +452,11 @@ export default class KeeplyBot {
 
       // Получаем настройки из capabilities
       const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
-      let limit = 1;
-      if (sendAttachmentsConfig) {
-        const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
-        if (limitAttr) limit = parseInt(limitAttr, 10);
-      }
+      // let limit = 1;
+      // if (sendAttachmentsConfig) {
+      //   const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
+      //   if (limitAttr) limit = parseInt(limitAttr, 10);
+      // }
 
       // Фильтруем файлы по типам, если заданы
       let filteredFiles = files;
@@ -463,8 +471,7 @@ export default class KeeplyBot {
       }
 
       // Добавляем файлы к выбранным, соблюдая лимит
-      const selectedFiles = [...this._selectedFiles, ...filteredFiles];
-      this._selectedFiles = selectedFiles.slice(0, limit);
+      this._addFilesToCategories(filteredFiles);
 
       this._renderAttachmentsPreview();
       this._updateSendButtonState();
@@ -472,7 +479,39 @@ export default class KeeplyBot {
   }
 
   /**
-   * Отображает превью выбранных файлов в форме.
+   * Добавляет файлы в соответствующие категории на основе их типа.
+   *
+   * @param {File[]} files - Массив файлов для добавления.
+   * @private
+   */
+  private _addFilesToCategories(files: File[]): void {
+    const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
+    let limit = 1;
+    if (sendAttachmentsConfig) {
+      const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
+      if (limitAttr) limit = parseInt(limitAttr, 10);
+    }
+
+    files.forEach((file) => {
+      const totalCurrentFiles =
+        this._selectedImages.length +
+        this._selectedVideos.length +
+        this._selectedAudios.length;
+
+      if (totalCurrentFiles >= limit) return;
+
+      if (file.type.startsWith('image/')) {
+        this._selectedImages.push(file);
+      } else if (file.type.startsWith('video/')) {
+        this._selectedVideos.push(file);
+      } else if (file.type.startsWith('audio/')) {
+        this._selectedAudios.push(file);
+      }
+    });
+  }
+
+  /**
+   * Отображает превью выбранных файлов в форме, разделенных по типам.
    *
    * @private
    */
@@ -481,65 +520,129 @@ export default class KeeplyBot {
 
     this._chatAttachmentsPreview.innerHTML = '';
 
-    if (this._selectedFiles.length === 0) {
+    const totalFiles =
+      this._selectedImages.length +
+      this._selectedVideos.length +
+      this._selectedAudios.length;
+
+    if (totalFiles === 0) {
       this._chatAttachmentsPreview.classList.add('hidden');
       return;
     }
 
     this._chatAttachmentsPreview.classList.remove('hidden');
 
-    this._selectedFiles.forEach((file, index) => {
-      if (!this._chatAttachmentsPreview) return;
-      const previewElement = createElement({
-        tag: 'li',
-        className: 'form-attachment-preview__item',
+    // Функция для создания превью секции
+    const createSection = (files: File[], type: string, icon: string): void => {
+      if (files.length === 0) return;
+
+      const section = createElement({
+        tag: 'div',
+        className: [
+          'form-att-prev__section',
+          `form-att-prev__section--${type}`,
+        ],
         children: [
           {
-            tag: 'div',
-            className: 'form-attachments-preview__image-wrapper',
+            tag: 'h5',
+            className: 'form-att-prev__section-title',
             children: [
               {
-                tag: 'img',
-                className: 'form-attachments-preview__image',
-                attrs: {
-                  src: URL.createObjectURL(file),
-                  alt: file.name,
-                },
+                tag: 'span',
+                className: 'material-symbols-outlined',
+                text: icon,
               },
               {
-                tag: 'button',
-                className: 'form-attachments-preview__remove',
-                children: [
-                  {
-                    tag: 'span',
-                    className: 'material-symbols-outlined',
-                    text: 'close',
-                  },
-                ],
+                tag: 'span',
+                text:
+                  type === 'images'
+                    ? 'Изображения'
+                    : type === 'videos'
+                      ? 'Видео'
+                      : 'Аудио',
               },
             ],
           },
           {
-            tag: 'span',
-            className: 'form-attachments-preview__name',
-            text: file.name,
+            tag: 'ul',
+            className: 'form-att-prev__list',
+            children: files.map((file) => ({
+              tag: 'li',
+              className: 'form-att-prev__item',
+              children: [
+                {
+                  tag: 'div',
+                  className: 'form-att-prev__image-wrapper',
+                  children: [
+                    type === 'images'
+                      ? {
+                          tag: 'img',
+                          className: 'form-att-prev__image',
+                          attrs: {
+                            src: URL.createObjectURL(file),
+                            alt: file.name,
+                          },
+                        }
+                      : {
+                          tag: 'div',
+                          className: 'form-att-prev__file-icon',
+                          children: [
+                            {
+                              tag: 'span',
+                              className: 'material-symbols-outlined',
+                              text:
+                                type === 'videos' ? 'videocam' : 'audiotrack',
+                            },
+                          ],
+                        },
+                    {
+                      tag: 'button',
+                      className: 'form-att-prev__remove',
+                      children: [
+                        {
+                          tag: 'span',
+                          className: 'material-symbols-outlined',
+                          text: 'close',
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  tag: 'span',
+                  className: ['form-att-prev__name', 'has-tooltip'],
+                  text: file.name,
+                  attrs: {
+                    'data-tooltip': file.name,
+                  },
+                },
+              ],
+            })),
           },
         ],
-        parent: this._chatAttachmentsPreview,
+        parent: this._chatAttachmentsPreview as HTMLElement,
       });
 
-      // Обработчик удаления файла
-      const removeButton = previewElement.querySelector(
-        '.form-attachments-preview__remove'
-      );
-      if (removeButton) {
-        removeButton.addEventListener('click', () => {
-          this._selectedFiles.splice(index, 1);
+      // Обработчики удаления файлов
+      const removeButtons = section.querySelectorAll('.form-att-prev__remove');
+      removeButtons.forEach((button, index) => {
+        button.addEventListener('click', () => {
+          if (type === 'images') {
+            this._selectedImages.splice(index, 1);
+          } else if (type === 'videos') {
+            this._selectedVideos.splice(index, 1);
+          } else if (type === 'audios') {
+            this._selectedAudios.splice(index, 1);
+          }
           this._renderAttachmentsPreview();
           this._updateSendButtonState();
         });
-      }
-    });
+      });
+    };
+
+    createSection(this._selectedImages, 'images', 'image');
+    createSection(this._selectedVideos, 'videos', 'videocam');
+    createSection(this._selectedAudios, 'audios', 'audiotrack');
   }
 
   /**
@@ -588,7 +691,10 @@ export default class KeeplyBot {
 
     const message = this._chatTextarea.value.trim();
     const hasText = message.length > 0;
-    const hasFiles = this._selectedFiles.length > 0;
+    const hasFiles =
+      this._selectedImages.length > 0 ||
+      this._selectedVideos.length > 0 ||
+      this._selectedAudios.length > 0;
 
     this._chatSendButton.disabled = !hasText && !hasFiles;
   }
@@ -688,15 +794,26 @@ export default class KeeplyBot {
     for (const msg of messages) {
       const bodyChildren: ICreateElementOptions[] = [];
 
+      // Добавляем текст сообщения только если он присутствует
+      if (msg.message?.trim()) {
+        bodyChildren.push({
+          tag: 'p',
+          className: 'chat__message-text',
+          html: linkifyHtml(msg.message, this._linkifyOptions),
+        });
+      }
+
       // Обработка файлов
       if (msg.files?.length) {
-        const fileItems: ICreateElementOptions[] = [];
+        const imageItems: ICreateElementOptions[] = [];
+        const videoItems: ICreateElementOptions[] = [];
+        const audioItems: ICreateElementOptions[] = [];
 
         for (const file of msg.files) {
           const fileUrl = `${SERVER_URL}${file.url}`;
 
           if (file.mimetype.startsWith('image/')) {
-            fileItems.push({
+            imageItems.push({
               tag: 'li',
               className: ['chat__message-file', 'chat__message-file--image'],
               children: [
@@ -732,7 +849,7 @@ export default class KeeplyBot {
               ],
             });
           } else if (file.mimetype.startsWith('video/')) {
-            fileItems.push({
+            videoItems.push({
               tag: 'li',
               className: 'chat__message-file',
               children: [
@@ -744,10 +861,58 @@ export default class KeeplyBot {
               ],
             });
           } else if (file.mimetype.startsWith('audio/')) {
-            fileItems.push({
+            audioItems.push({
               tag: 'li',
-              className: 'chat__message-file',
+              className: ['chat__message-file', 'chat__message-file--audio'],
               children: [
+                {
+                  tag: 'div',
+                  className: 'chat__message-file-info',
+                  children: [
+                    {
+                      tag: 'p',
+                      className: ['chat__message-file-name', 'has-tooltip'],
+                      text: file.filename,
+                      attrs: {
+                        'data-tooltip': 'Название аудиофайла',
+                      },
+                    },
+                    {
+                      tag: 'div',
+                      className: ['chat__message-file-size', 'has-tooltip'],
+                      attrs: {
+                        'data-tooltip': 'Размер аудиофайла',
+                      },
+                      children: [
+                        {
+                          tag: 'span',
+                          className: 'material-symbols-outlined',
+                          text: 'play_for_work',
+                        },
+                        {
+                          tag: 'span',
+                          text: String(file.size),
+                        },
+                      ],
+                    },
+                    {
+                      tag: 'a',
+                      className: 'chat__message-file-download',
+                      attrs: { href: fileUrl, download: file.originalname },
+                      children: [
+                        {
+                          tag: 'span',
+                          className: 'material-symbols-outlined',
+                          text: 'download',
+                        },
+                        {
+                          tag: 'span',
+                          text: 'Скачать',
+                        },
+                      ],
+                    },
+                  ],
+                },
                 {
                   tag: 'audio',
                   className: 'chat__message-audio',
@@ -759,27 +924,120 @@ export default class KeeplyBot {
           // Другие типы файлов (например, PDF, DOC) можно добавить здесь
         }
 
-        bodyChildren.push({
-          tag: 'ul',
-          className: 'chat__message-files',
-          children: fileItems,
-        });
+        // Создаем контейнер для всех секций файлов
+        const filesSections: ICreateElementOptions[] = [];
+
+        if (imageItems.length > 0) {
+          filesSections.push({
+            tag: 'div',
+            className: 'chat__message-files-section',
+            children: [
+              {
+                tag: 'h5',
+                className: 'chat__message-files-title',
+                children: [
+                  {
+                    tag: 'span',
+                    className: 'material-symbols-outlined',
+                    text: 'image',
+                  },
+                  {
+                    tag: 'span',
+                    text: 'Изображения',
+                  },
+                ],
+              },
+              {
+                tag: 'ul',
+                className: [
+                  'chat__message-files',
+                  'chat__message-files--images',
+                ],
+                children: imageItems,
+              },
+            ],
+          });
+        }
+        if (videoItems.length > 0) {
+          filesSections.push({
+            tag: 'div',
+            className: 'chat__message-files-section',
+            children: [
+              {
+                tag: 'h5',
+                className: 'chat__message-files-title',
+                children: [
+                  {
+                    tag: 'span',
+                    className: 'material-symbols-outlined',
+                    text: 'videocam',
+                  },
+                  {
+                    tag: 'span',
+                    text: 'Видео',
+                  },
+                ],
+              },
+              {
+                tag: 'ul',
+                className: [
+                  'chat__message-files',
+                  'chat__message-files--videos',
+                ],
+                children: videoItems,
+              },
+            ],
+          });
+        }
+        if (audioItems.length > 0) {
+          filesSections.push({
+            tag: 'div',
+            className: 'chat__message-files-section',
+            children: [
+              {
+                tag: 'h5',
+                className: 'chat__message-files-title',
+                children: [
+                  {
+                    tag: 'span',
+                    className: 'material-symbols-outlined',
+                    text: 'audiotrack',
+                  },
+                  {
+                    tag: 'span',
+                    text: 'Аудио',
+                  },
+                ],
+              },
+              {
+                tag: 'ul',
+                className: [
+                  'chat__message-files',
+                  'chat__message-files--audios',
+                ],
+                children: audioItems,
+              },
+            ],
+          });
+        }
+
+        // Добавляем общий контейнер для всех секций файлов
+        if (filesSections.length > 0) {
+          bodyChildren.push({
+            tag: 'div',
+            className: 'chat__message-files-container',
+            children: filesSections,
+          });
+        }
       }
 
-      // Всегда добавляем текст сообщения и временную метку
-      bodyChildren.push(
-        {
-          tag: 'p',
-          className: 'chat__message-text',
-          html: linkifyHtml(msg.message, this._linkifyOptions),
-        },
-        {
-          tag: 'time',
-          className: 'chat__message-timestamp',
-          text: new Date(msg.timestamp).toLocaleString(),
-          attrs: { datetime: msg.timestamp },
-        }
-      );
+      // Всегда добавляем временную метку
+      bodyChildren.push({
+        tag: 'time',
+        className: 'chat__message-timestamp',
+        text: new Date(msg.timestamp).toLocaleString(),
+        attrs: { datetime: msg.timestamp },
+      });
 
       // Создаём элемент сообщения
       const messageItem = createElement({

@@ -11,6 +11,11 @@
   flex-direction: column;
 }
 
+@mixin flex-col-gap($gap: 1rem) {
+  @include flex-col;
+  gap: $gap;
+}
+
 @mixin flex-gap($gap: 1rem) {
   @include d-flex;
   gap: $gap;
