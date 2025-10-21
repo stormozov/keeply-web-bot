@@ -2,6 +2,8 @@
 // Интерфейсы бота
 // =============================================================================
 
+import { ICreateElementOptions } from '../../shared/interfaces';
+
 /**
  * Интерфейс для структуры UI-элементов бота, которые настраиваются сервером
  */
@@ -43,6 +45,16 @@ export interface IUserMessageCard {
   message: string;
   files: IMessageFile[];
   timestamp: string;
+}
+
+/**
+ * Интерфейс для конфигурации типов файлов в секциях файлов внутри сообщений
+ */
+export interface IFileTypeConfig {
+  test: (mimetype: string) => boolean;
+  builder: (file: IMessageFile, fileUrl: string) => ICreateElementOptions;
+  icon: string;
+  title: string;
 }
 
 // =============================================================================

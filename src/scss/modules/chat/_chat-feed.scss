@@ -74,13 +74,6 @@
         }
       }
 
-      &--images,
-      &--videos {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: spacing('xxs');
-      }
-
       &-title {
         @include mixins.files-section-title;
 
@@ -188,6 +181,15 @@
       margin-top: spacing('md');
       font-size: font-size('xs');
       color: color('text-secondary');
+    }
+  }
+
+  &__message-files-section--images,
+  &__message-files-section--videos {
+    .chat__message-files-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: spacing('xxs');
     }
   }
 

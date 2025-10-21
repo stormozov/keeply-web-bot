@@ -1,7 +1,4 @@
-import linkifyHtml from 'linkify-html';
-import { ICreateElementOptions } from '../shared/interfaces';
 import createElement from '../utils/createElementFunction';
-import { SERVER_URL } from './api/api';
 import MessageService from './services/MessageService';
 import {
   IBotCapabilities,
@@ -9,6 +6,7 @@ import {
   ICapabilitiesElementSettings,
   IUserMessageCard,
 } from './shared/interfaces';
+import { buildMessageFragment } from './ui/msg-fragment/msgFragmentBuilder';
 
 /**
  * Класс для управления UI-элементами чат-бота Keeply на основе его возможностей (capabilities).
@@ -77,20 +75,6 @@ export default class KeeplyBot {
 
   // Сервисы
   private _messageService: MessageService = new MessageService();
-
-  /**
-   * Настройки для функции linkifyHtml.
-   *
-   * @private
-   *
-   * @see {@link https://linkify.js.org/docs/options.html} - Документация linkifyHtml
-   */
-  private readonly _linkifyOptions = {
-    className: 'chat__message-link',
-    rel: 'noopener noreferrer',
-    target: '_blank',
-    truncate: 50,
-  };
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
@@ -162,6 +146,14 @@ export default class KeeplyBot {
     // Обработка изменения состояния файлов
     // Добавляем слушатель для обновления состояния кнопки при изменении файлов
     this._updateSendButtonState();
+
+    // Обработка клика кнопку "Скачать" у файла в сообщении
+    if (this._chatContent) {
+      this._chatContent.addEventListener(
+        'click',
+        this._handleDownloadClick.bind(this)
+      );
+    }
   }
 
   /**
@@ -316,14 +308,13 @@ export default class KeeplyBot {
 
         // После отправки показываем последние 10 сообщений для поддержания
         // ленивой подгрузки
-        this._loadedMessages = response.slice(-this._messagePerPage);
         this._currentOffset = Math.max(
           0,
           response.length - this._messagePerPage
         );
         this._hasMoreMessages = response.length > this._messagePerPage;
 
-        this._renderMessages(this._loadedMessages);
+        this._displayMessages([...response.slice(-this._messagePerPage)]);
         this._scrollToBottom(); // Прокручиваем до последнего сообщения
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -766,15 +757,13 @@ export default class KeeplyBot {
         this._messagePerPage
       );
 
-      // Обновляем массив сообщений
-      this._loadedMessages = messages;
       this._currentOffset = 10;
 
-      this._renderMessages(this._loadedMessages);
+      this._displayMessages([...messages]);
       this._scrollToBottom(); // Прокручиваем до последнего сообщения
     } catch (error) {
       console.error('Failed to load messages:', error);
-      this._renderMessages([]);
+      this._displayMessages([]);
     } finally {
       this._hideSkeleton();
     }
@@ -853,9 +842,8 @@ export default class KeeplyBot {
       const oldScrollHeight = target.scrollHeight;
 
       // Добавляем новые сообщения в начало массива
-      this._loadedMessages = [...newMessages, ...this._loadedMessages];
       this._currentOffset += this._messagePerPage;
-      this._renderMessages(this._loadedMessages);
+      this._displayMessages([...newMessages, ...this._loadedMessages]);
 
       // Восстанавливаем позицию прокрутки после добавления новых сообщений
       this._restoreScrollPosition(target, oldScrollHeight, scrollTop);
@@ -919,359 +907,44 @@ export default class KeeplyBot {
   }
 
   /**
-   * Отображает массив сообщений в UI чата.
+   * Отображает список всех отправленных сообщений в интерфейсе чата
    *
-   * @param {IUserMessageCard[]} messages — массив сообщений с сервера.
+   * @param {IUserMessageCard[]} messages - Массив карточек сообщений
+   * для отображения
    *
-   * @private
+   * @description
+   * 1. Очищает текущее содержимое чата
+   * 2. Если нет сообщений:
+   *    - Показывает блок "Пустой чат"
+   * 3. Если есть сообщения:
+   *    - Скрывает блок "Пустой чат"
+   *    - Создает и добавляет список сообщений
    *
-   * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
-   * @see {@link createElement} - Функция для создания DOM-элементов
-   * @see {@link https://linkify.js.org/} - Библиотека для автоматической обработки ссылок
+   * @see {@link buildMessageFragment} - Функция рендеринга сообщений в DOM-фрагмент
+   * @see this._chatContent - Контейнер для отображения сообщений
+   * @see this._emptyBlock - Блок, отображаемый при отсутствии сообщений
    */
-  private _renderMessages(messages: IUserMessageCard[]): void {
-    if (!(this._chatContent instanceof HTMLElement) || !this._chatContent) {
-      return;
-    }
+  private _displayMessages(messages: IUserMessageCard[]): void {
+    // Очистка содержимого чата перед отображением новых сообщений
+    this._chatContent?.replaceChildren();
 
-    // Очищаем содержимое чата
-    this._chatContent.replaceChildren();
-
+    // Показ блока "Пустой чат", если нет сообщений
     if (messages.length === 0) {
-      // Если сообщений нет, показываем пустой блок
-      if (this._emptyBlock) this._chatContent.append(this._emptyBlock);
+      if (this._emptyBlock) this._chatContent?.append(this._emptyBlock);
       return;
     }
 
-    // Скрываем пустой блок, если он есть
-    if (this._emptyBlock && this._emptyBlock instanceof HTMLElement) {
+    // Скрытие блока "Пустой чат"
+    if (this._emptyBlock instanceof HTMLElement) {
       this._emptyBlock.style.display = 'none';
     }
 
-    const fragment = document.createDocumentFragment();
-
-    for (const msg of messages) {
-      const bodyChildren: ICreateElementOptions[] = [];
-
-      // Добавляем текст сообщения только если он присутствует
-      if (msg.message?.trim()) {
-        bodyChildren.push({
-          tag: 'p',
-          className: 'chat__message-text',
-          html: linkifyHtml(msg.message, this._linkifyOptions),
-        });
-      }
-
-      // Обработка файлов
-      if (msg.files?.length) {
-        const imageItems: ICreateElementOptions[] = [];
-        const videoItems: ICreateElementOptions[] = [];
-        const audioItems: ICreateElementOptions[] = [];
-
-        for (const file of msg.files) {
-          const fileUrl = `${SERVER_URL}${file.url}`;
-
-          if (file.mimetype.startsWith('image/')) {
-            imageItems.push({
-              tag: 'li',
-              className: ['chat__message-file', 'chat__message-file--image'],
-              children: [
-                {
-                  tag: 'img',
-                  className: ['chat__message-file-img', 'has-tooltip'],
-                  attrs: {
-                    src: fileUrl,
-                    alt: file.originalname,
-                    'data-tooltip': file.originalname,
-                  },
-                },
-                {
-                  tag: 'div',
-                  className: 'chat__message-file-info',
-                  children: [
-                    {
-                      tag: 'p',
-                      className: ['chat__message-file-size', 'has-tooltip'],
-                      text: String(file.size),
-                      attrs: {
-                        'data-tooltip': 'Размер аудиофайла',
-                      },
-                    },
-                    {
-                      tag: 'button',
-                      className: ['link-btn', 'chat__message-file-download'],
-                      attrs: {
-                        'data-url': fileUrl,
-                        'data-filename': file.originalname,
-                      },
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'download',
-                        },
-                        {
-                          tag: 'span',
-                          className: 'link-btn__text',
-                          text: 'Скачать',
-                        },
-                      ],
-                      events: {
-                        click: this._handleDownloadClick.bind(this),
-                      },
-                    },
-                  ],
-                },
-              ],
-            });
-          } else if (file.mimetype.startsWith('video/')) {
-            videoItems.push({
-              tag: 'li',
-              className: ['chat__message-file', 'chat__message-file--video'],
-              children: [
-                {
-                  tag: 'video',
-                  className: 'chat__message-video',
-                  attrs: { src: fileUrl, controls: 'true' },
-                },
-                {
-                  tag: 'div',
-                  className: 'chat__message-file-info',
-                  children: [
-                    {
-                      tag: 'span',
-                      className: ['chat__message-file-size', 'has-tooltip'],
-                      text: String(file.size),
-                      attrs: {
-                        'data-tooltip': 'Размер видеофайла',
-                      },
-                    },
-                    {
-                      tag: 'button',
-                      className: ['link-btn', 'chat__message-file-download'],
-                      attrs: {
-                        'data-url': fileUrl,
-                        'data-filename': file.originalname,
-                      },
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'download',
-                        },
-                        {
-                          tag: 'span',
-                          className: 'link-btn__text',
-                          text: 'Скачать',
-                        },
-                      ],
-                      events: {
-                        click: this._handleDownloadClick.bind(this),
-                      },
-                    },
-                  ],
-                },
-              ],
-            });
-          } else if (file.mimetype.startsWith('audio/')) {
-            audioItems.push({
-              tag: 'li',
-              className: ['chat__message-file', 'chat__message-file--audio'],
-              children: [
-                {
-                  tag: 'div',
-                  className: 'chat__message-file-info',
-                  children: [
-                    {
-                      tag: 'p',
-                      className: ['chat__message-file-name', 'has-tooltip'],
-                      text: file.filename,
-                      attrs: {
-                        'data-tooltip': 'Название аудиофайла',
-                      },
-                    },
-                    {
-                      tag: 'p',
-                      className: ['chat__message-file-size', 'has-tooltip'],
-                      text: String(file.size),
-                      attrs: {
-                        'data-tooltip': 'Размер аудиофайла',
-                      },
-                    },
-                    {
-                      tag: 'button',
-                      className: ['link-btn', 'chat__message-file-download'],
-                      attrs: {
-                        'data-url': fileUrl,
-                        'data-filename': file.originalname,
-                      },
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'download',
-                        },
-                        {
-                          tag: 'span',
-                          className: 'link-btn__text',
-                          text: 'Скачать',
-                        },
-                      ],
-                      events: {
-                        click: this._handleDownloadClick.bind(this),
-                      },
-                    },
-                  ],
-                },
-                {
-                  tag: 'audio',
-                  className: 'chat__message-audio',
-                  attrs: { src: fileUrl, controls: 'true' },
-                },
-              ],
-            });
-          }
-          // Другие типы файлов (например, PDF, DOC) можно добавить здесь
-        }
-
-        // Создаем контейнер для всех секций файлов
-        const filesSections: ICreateElementOptions[] = [];
-
-        if (imageItems.length > 0) {
-          filesSections.push({
-            tag: 'div',
-            className: 'chat__message-files-section',
-            children: [
-              {
-                tag: 'h5',
-                className: 'chat__message-files-title',
-                children: [
-                  {
-                    tag: 'span',
-                    className: 'material-symbols-outlined',
-                    text: 'image',
-                  },
-                  {
-                    tag: 'span',
-                    text: 'Изображения',
-                  },
-                ],
-              },
-              {
-                tag: 'ul',
-                className: [
-                  'chat__message-files',
-                  'chat__message-files--images',
-                ],
-                children: imageItems,
-              },
-            ],
-          });
-        }
-        if (videoItems.length > 0) {
-          filesSections.push({
-            tag: 'div',
-            className: 'chat__message-files-section',
-            children: [
-              {
-                tag: 'h5',
-                className: 'chat__message-files-title',
-                children: [
-                  {
-                    tag: 'span',
-                    className: 'material-symbols-outlined',
-                    text: 'videocam',
-                  },
-                  {
-                    tag: 'span',
-                    text: 'Видео',
-                  },
-                ],
-              },
-              {
-                tag: 'ul',
-                className: [
-                  'chat__message-files',
-                  'chat__message-files--videos',
-                ],
-                children: videoItems,
-              },
-            ],
-          });
-        }
-        if (audioItems.length > 0) {
-          filesSections.push({
-            tag: 'div',
-            className: 'chat__message-files-section',
-            children: [
-              {
-                tag: 'h5',
-                className: 'chat__message-files-title',
-                children: [
-                  {
-                    tag: 'span',
-                    className: 'material-symbols-outlined',
-                    text: 'audiotrack',
-                  },
-                  {
-                    tag: 'span',
-                    text: 'Аудио',
-                  },
-                ],
-              },
-              {
-                tag: 'ul',
-                className: [
-                  'chat__message-files',
-                  'chat__message-files--audios',
-                ],
-                children: audioItems,
-              },
-            ],
-          });
-        }
-
-        // Добавляем общий контейнер для всех секций файлов
-        if (filesSections.length > 0) {
-          bodyChildren.push({
-            tag: 'div',
-            className: 'chat__message-files-container',
-            children: filesSections,
-          });
-        }
-      }
-
-      // Всегда добавляем временную метку
-      bodyChildren.push({
-        tag: 'time',
-        className: 'chat__message-timestamp',
-        text: new Date(msg.timestamp).toLocaleString(),
-        attrs: { datetime: msg.timestamp },
-      });
-
-      // Создаём элемент сообщения
-      const messageItem = createElement({
-        tag: 'li',
-        className: 'chat__message-item',
-        id: msg.id,
-        children: [
-          {
-            tag: 'div',
-            className: 'chat__message-body',
-            children: bodyChildren,
-          },
-        ],
-      });
-
-      fragment.append(messageItem);
-    }
-
-    // Оборачиваем все сообщения в список
-    const messagesList = createElement({
+    // Создание и добавление списка сообщений в DOM
+    const list = createElement({
       tag: 'ul',
       className: 'chat__messages-list',
     });
-    messagesList.append(fragment);
-    this._chatContent.append(messagesList);
+    list.append(buildMessageFragment(messages));
+    this._chatContent?.append(list);
   }
 }
