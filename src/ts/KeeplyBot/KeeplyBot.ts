@@ -1,12 +1,8 @@
 import linkifyHtml from 'linkify-html';
 import { ICreateElementOptions } from '../shared/interfaces';
 import createElement from '../utils/createElementFunction';
-import {
-  fetchCapabilities,
-  fetchMessages,
-  sendMessage,
-  SERVER_URL,
-} from './api/api';
+import { SERVER_URL } from './api/api';
+import MessageService from './services/MessageService';
 import {
   IBotCapabilities,
   IBotUiStructure,
@@ -78,6 +74,9 @@ export default class KeeplyBot {
 
   // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
   private _dragEnterCounter: number = 0;
+
+  // Сервисы
+  private _messageService: MessageService = new MessageService();
 
   /**
    * Настройки для функции linkifyHtml.
@@ -174,7 +173,7 @@ export default class KeeplyBot {
    * @see {@link IBotCapabilities} - Интерфейс для Capabilities бота
    */
   async getCapabilities(): Promise<IBotCapabilities> {
-    return await fetchCapabilities();
+    return await this._messageService.loadCapabilities();
   }
 
   /**
@@ -310,7 +309,10 @@ export default class KeeplyBot {
 
     if (hasText || hasFiles) {
       try {
-        const response = await sendMessage(message || '', allFiles);
+        const response = await this._messageService.submitUserMessage(
+          message || '',
+          allFiles
+        );
 
         // После отправки показываем последние 10 сообщений для поддержания
         // ленивой подгрузки
@@ -759,7 +761,10 @@ export default class KeeplyBot {
   private async _loadMessages(): Promise<void> {
     this._showSkeleton();
     try {
-      const messages = await fetchMessages(0, this._messagePerPage);
+      const messages = await this._messageService.loadMoreMessages(
+        0,
+        this._messagePerPage
+      );
 
       // Обновляем массив сообщений
       this._loadedMessages = messages;
@@ -834,7 +839,7 @@ export default class KeeplyBot {
     this._isLoadingMore = true;
 
     try {
-      const newMessages = await fetchMessages(
+      const newMessages = await this._messageService.loadMoreMessages(
         this._currentOffset,
         this._messagePerPage
       );
