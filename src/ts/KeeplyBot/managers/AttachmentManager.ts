@@ -193,6 +193,14 @@ export class AttachmentManager {
     }
     container.classList.remove('hidden');
 
+    const clearAllButton = createElement({
+      tag: 'button',
+      className: ['form-att-prev__clear-all', 'link-btn'],
+      text: 'Очистить всё',
+      attrs: { type: 'button' },
+    });
+    container.append(clearAllButton);
+
     this._createSection(
       container,
       this._images,

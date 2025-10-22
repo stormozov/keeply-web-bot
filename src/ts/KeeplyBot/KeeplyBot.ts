@@ -139,6 +139,12 @@ export default class KeeplyBot {
         'click',
         this._handleAttachmentRemove.bind(this)
       );
+      if (this._chatAttachmentsPreview) {
+        this._chatAttachmentsPreview.addEventListener(
+          'click',
+          this._handleAttachmentClearAll.bind(this)
+        );
+      }
     }
 
     // Обработка Drag & Drop для загрузки файлов
@@ -420,6 +426,37 @@ export default class KeeplyBot {
     );
 
     // Обновляем состояние кнопки отправки
+    this._updateSendButtonState();
+  }
+
+  /**
+   * Обработчик события полной очистки всех вложений
+   *
+   * @param {Event} event - Событие клика
+   *
+   * @description
+   * 1. Проверяет, что событие произошло на элементе с нужным классом
+   * 2. Выполняет полную очистку всех загруженных файлов
+   * 3. Перерисовывает интерфейс предварительного просмотра
+   * 4. Обновляет состояние кнопки отправки
+   *
+   * @example
+   * // Пример работы:
+   * // 1. Пользователь нажимает кнопку "Очистить всё"
+   * // 2. Все файлы удаляются из менеджера
+   * // 3. Интерфейс обновляется и закрывает блок предварительного просмотра
+   *
+   * @see {@link AttachmentManager.clear} - Метод полной очистки файлов
+   * @see {@link AttachmentManager.renderPreview} - Перерисовка интерфейса
+   */
+  private _handleAttachmentClearAll(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains('form-att-prev__clear-all')) return;
+
+    this._attachmentManager.clear();
+    this._attachmentManager.renderPreview(
+      this._chatAttachmentsPreview as HTMLElement
+    );
     this._updateSendButtonState();
   }
 
