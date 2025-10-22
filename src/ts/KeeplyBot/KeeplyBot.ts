@@ -1,6 +1,7 @@
 import createElement from '../utils/createElementFunction';
 import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
+import LazyLoader from './managers/LazyLoader';
 import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
 import { FileType } from './shared/types';
@@ -57,10 +58,6 @@ export default class KeeplyBot {
 
   // Состояние для ленивой подгрузки сообщений
   private _loadedMessages: IUserMessageCard[] = [];
-  private _currentOffset: number = 0;
-  private _isLoadingMore: boolean = false;
-  private _hasMoreMessages: boolean = true;
-  private readonly _scrollThreshold = 50;
   private readonly _messagePerPage = 10;
 
   // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
@@ -70,6 +67,7 @@ export default class KeeplyBot {
   private _messageService: MessageService;
   private _capabilitiesManager: CapabilitiesManager;
   private _attachmentManager: AttachmentManager;
+  private _lazyLoader!: LazyLoader | null;
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
@@ -150,12 +148,6 @@ export default class KeeplyBot {
     this._handleDragAndDrop();
 
     // Обработка прокрутки для ленивой подгрузки
-    if (this._chatFeedWrap) {
-      this._chatFeedWrap.addEventListener(
-        'scroll',
-        this._handleLazyScroll.bind(this)
-      );
-    }
 
     // Обработка изменения состояния файлов
     // Добавляем слушатель для обновления состояния кнопки при изменении файлов
@@ -220,20 +212,18 @@ export default class KeeplyBot {
 
     if (hasText || hasFiles) {
       try {
-        const response = await this._messageService.submitUserMessage(
+        const allMessages = await this._messageService.submitUserMessage(
           message || '',
           allFiles
         );
         // После отправки показываем последние 10 сообщений для поддержания
         // ленивой подгрузки
-        this._loadedMessages = response.slice(-this._messagePerPage);
-        this._currentOffset = Math.max(
-          0,
-          response.length - this._messagePerPage
-        );
-        this._hasMoreMessages = response.length > this._messagePerPage;
+        this._loadedMessages = allMessages.slice(-this._messagePerPage);
         this._displayMessages(this._loadedMessages);
         this._scrollToBottom(); // Прокручиваем до последнего сообщения
+
+        // Сбрасываем LazyLoader, потому что чат "обновился"
+        if (this._lazyLoader) this._lazyLoader.reset();
       } catch (error) {
         console.error('Failed to send message:', error);
       }
@@ -248,6 +238,7 @@ export default class KeeplyBot {
     if (this._chatAttachmentsPreview) {
       this._chatAttachmentsPreview.classList.add('hidden');
     }
+    if (this._lazyLoader) this._lazyLoader.reset(this._messagePerPage);
     this._updateSendButtonState();
   }
 
@@ -540,37 +531,55 @@ export default class KeeplyBot {
   }
 
   /**
-   * Загружает сообщения с сервера и отображает их.
+   * Загружает начальные сообщения и инициализирует ленивую загрузку
    *
    * @description
-   * 1. Показывает скелетон загрузки.
-   * 2. Загружает последние 10 сообщений с сервера.
-   * 3. Отображает сообщения в UI чата.
-   * 4. Скрывает скелетон загрузки.
-   * 5. Прокручивает чат до последнего сообщения.
+   * 1. Отображает индикатор загрузки (skeleton)
+   * 2. Загружает начальную порцию сообщений
+   * 3. Инициализирует LazyLoader для подгрузки старых сообщений при прокрутке
+   * 4. Обновляет интерфейс и позиционирует скролл
    *
-   * @returns {Promise<void>} Промис, который разрешается, когда загрузка сообщений завершена.
-   *
-   * @private
+   * @see {@link LazyLoader} - Механизм ленивой загрузки
+   * @see {@link MessageService.loadInitialMessages} - Метод загрузки начальных
+   * сообщений из MessageService
    */
   private async _loadMessages(): Promise<void> {
     this._showSkeleton();
     try {
-      const messages = await this._messageService.loadMoreMessages(
-        0,
+      const initialMessages = await this._messageService.loadInitialMessages(
         this._messagePerPage
       );
+      this._loadedMessages = [...initialMessages];
 
-      this._currentOffset = 10;
-
-      this._displayMessages([...messages]);
-      this._scrollToBottom(); // Прокручиваем до последнего сообщения
+      this._initLazyLoader();
+      this._displayMessages(this._loadedMessages);
+      this._scrollToBottom();
     } catch (error) {
       console.error('Failed to load messages:', error);
       this._displayMessages([]);
     } finally {
       this._hideSkeleton();
     }
+  }
+
+  /**
+   * Инициализирует LazyLoader для подгрузки старых сообщений при прокрутке.
+   */
+  private _initLazyLoader(): void {
+    if (!(this._chatFeedWrap instanceof HTMLElement)) return;
+    if (this._lazyLoader) this._lazyLoader.dispose();
+
+    this._lazyLoader = new LazyLoader(
+      this._chatFeedWrap,
+      this._messageService,
+      (newMessages) => {
+        this._loadedMessages = [...newMessages, ...this._loadedMessages];
+        this._displayMessages(this._loadedMessages);
+      },
+      { messagePerPage: this._messagePerPage }
+    );
+
+    this._lazyLoader.attachScrollListener();
   }
 
   /**
@@ -601,70 +610,6 @@ export default class KeeplyBot {
   private _hideSkeleton(): void {
     if (!this._skeleton) return;
     this._skeleton.classList.add('hidden');
-  }
-
-  /**
-   * Обработчик события прокрутки чата для ленивой подгрузки сообщений.
-   *
-   * @description
-   * При прокрутке вверх до верхней границы загружает следующие 10 сообщений.
-   *
-   * @param {Event} event - Событие прокрутки.
-   *
-   * @private
-   */
-  private async _handleLazyScroll(event: Event): Promise<void> {
-    if (
-      this._isLoadingMore ||
-      !this._chatFeedWrap ||
-      !this._hasMoreMessages ||
-      !(event.target instanceof HTMLElement)
-    ) {
-      return;
-    }
-
-    const target = event.target;
-    const scrollTop = target.scrollTop;
-
-    // Если прокрутили вверх до верхней границы (с небольшим отступом)
-    if (scrollTop > this._scrollThreshold) return;
-
-    this._isLoadingMore = true;
-
-    try {
-      const newMessages = await this._messageService.loadMoreMessages(
-        this._currentOffset,
-        this._messagePerPage
-      );
-
-      if (newMessages.length === 0) {
-        this._hasMoreMessages = false;
-        return;
-      }
-
-      // Сохраняем текущую высоту скролла перед добавлением новых сообщений
-      const oldScrollHeight = target.scrollHeight;
-
-      // Добавляем новые сообщения в начало массива
-      this._currentOffset += this._messagePerPage;
-      this._displayMessages([...newMessages, ...this._loadedMessages]);
-
-      // Восстанавливаем позицию прокрутки после добавления новых сообщений
-      this._restoreScrollPosition(target, oldScrollHeight, scrollTop);
-    } catch (error) {
-      console.error('Failed to load more messages:', error);
-    } finally {
-      this._isLoadingMore = false;
-    }
-  }
-
-  private _restoreScrollPosition(
-    target: HTMLElement,
-    oldScrollHeight: number,
-    scrollTop: number
-  ): void {
-    const newScrollHeight = target.scrollHeight;
-    target.scrollTop = newScrollHeight - oldScrollHeight + scrollTop;
   }
 
   /**
