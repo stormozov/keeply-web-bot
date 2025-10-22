@@ -1,5 +1,5 @@
 // =============================================================================
-// Интерфейсы бота
+// Интерфейсы приложения Keeply
 // =============================================================================
 
 import { ICreateElementOptions } from '../../shared/interfaces';
@@ -110,4 +110,19 @@ export interface IBotCapabilities {
   messaging: IMessagingCapabilities;
   search: ISearchCapabilities;
   ui: IUiCapabilities;
+}
+
+// =============================================================================
+// Интерфейсы для конфигурации вложений
+// =============================================================================
+
+export interface IAttachmentState {
+  images: File[];
+  videos: File[];
+  audios: File[];
+}
+
+export interface IAttachmentConfig {
+  types?: string[]; // например: ['image/*', 'video/mp4']
+  limit?: number; // например: 5
 }

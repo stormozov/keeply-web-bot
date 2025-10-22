@@ -1,4 +1,5 @@
 import createElement from '../utils/createElementFunction';
+import { AttachmentManager } from './managers/AttachmentManager';
 import MessageService from './services/MessageService';
 import {
   IBotCapabilities,
@@ -6,6 +7,7 @@ import {
   ICapabilitiesElementSettings,
   IUserMessageCard,
 } from './shared/interfaces';
+import { FileType } from './shared/types';
 import { buildMessageFragment } from './ui/msg-fragment/msgFragmentBuilder';
 
 /**
@@ -57,11 +59,6 @@ export default class KeeplyBot {
   private readonly _skeleton = document.querySelector('.chat__skeleton');
   private readonly _chat = document.querySelector('.chat');
 
-  // Состояние выбранных файлов по типам
-  private _selectedImages: File[] = [];
-  private _selectedVideos: File[] = [];
-  private _selectedAudios: File[] = [];
-
   // Состояние для ленивой подгрузки сообщений
   private _loadedMessages: IUserMessageCard[] = [];
   private _currentOffset: number = 0;
@@ -73,8 +70,12 @@ export default class KeeplyBot {
   // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
   private _dragEnterCounter: number = 0;
 
-  // Сервисы
+  // Сервисы и менеджеры
   private _messageService: MessageService = new MessageService();
+  private _attachmentManager: AttachmentManager = new AttachmentManager({
+    types: ['image/*', 'video/*', 'audio/*', 'application/pdf'],
+    limit: 9,
+  });
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
@@ -129,6 +130,14 @@ export default class KeeplyBot {
       this._chatAttachButton.addEventListener(
         'click',
         this._handleAttachButtonClick.bind(this)
+      );
+    }
+
+    // Делегирование для удаления вложений
+    if (this._chatAttachmentsPreview) {
+      this._chatAttachmentsPreview.addEventListener(
+        'click',
+        this._handleAttachmentRemove.bind(this)
       );
     }
 
@@ -268,6 +277,9 @@ export default class KeeplyBot {
     const element = this._botUi.messaging.sendAttachments;
     if (element) {
       this._updateElementState(element, config);
+      const types = Array.isArray(config.types) ? config.types : undefined;
+      const limit = typeof config.limit === 'number' ? config.limit : undefined;
+      this._attachmentManager.updateConfig({ types, limit });
     }
   }
 
@@ -279,7 +291,8 @@ export default class KeeplyBot {
    * и обновляет интерфейс чата.
    *
    * @param {Event} event - Событие отправки формы.
-   * @returns {Promise<void>} Промис, который разрешается, когда отправка сообщения завершена.
+   * @returns {Promise<void>} Промис, который разрешается, когда отправка
+   * сообщения завершена.
    *
    * @private
    */
@@ -289,15 +302,11 @@ export default class KeeplyBot {
 
     const message = this._getUserMessageFromForm();
     const hasText = message && message.trim().length > 0;
+
+    const { images, videos, audios } = this._attachmentManager.getState();
     const hasFiles =
-      this._selectedImages.length > 0 ||
-      this._selectedVideos.length > 0 ||
-      this._selectedAudios.length > 0;
-    const allFiles = [
-      ...this._selectedImages,
-      ...this._selectedVideos,
-      ...this._selectedAudios,
-    ];
+      images.length > 0 || videos.length > 0 || audios.length > 0;
+    const allFiles = [...images, ...videos, ...audios];
 
     if (hasText || hasFiles) {
       try {
@@ -305,28 +314,30 @@ export default class KeeplyBot {
           message || '',
           allFiles
         );
-
         // После отправки показываем последние 10 сообщений для поддержания
         // ленивой подгрузки
+        this._loadedMessages = response.slice(-this._messagePerPage);
         this._currentOffset = Math.max(
           0,
           response.length - this._messagePerPage
         );
         this._hasMoreMessages = response.length > this._messagePerPage;
-
-        this._displayMessages([...response.slice(-this._messagePerPage)]);
+        this._displayMessages(this._loadedMessages);
         this._scrollToBottom(); // Прокручиваем до последнего сообщения
       } catch (error) {
         console.error('Failed to send message:', error);
       }
     }
 
+    // Сброс формы и файлов
     this._chatForm.reset();
-    this._selectedImages = [];
-    this._selectedVideos = [];
-    this._selectedAudios = [];
-    this._renderAttachmentsPreview();
-    this._chatAttachmentsPreview?.classList.add('hidden');
+    this._attachmentManager.clear();
+    this._attachmentManager.renderPreview(
+      this._chatAttachmentsPreview as HTMLElement
+    );
+    if (this._chatAttachmentsPreview) {
+      this._chatAttachmentsPreview.classList.add('hidden');
+    }
     this._updateSendButtonState();
   }
 
@@ -361,14 +372,55 @@ export default class KeeplyBot {
     fileInput.addEventListener('change', (event) => {
       const target = event.target as HTMLInputElement;
       if (target.files) {
-        const files = Array.from(target.files);
-        this._addFilesToCategories(files);
-        this._renderAttachmentsPreview();
+        this._attachmentManager.addFiles([...target.files]);
+        this._attachmentManager.renderPreview(
+          this._chatAttachmentsPreview as HTMLElement
+        );
         this._updateSendButtonState();
       }
     });
 
     fileInput.click();
+  }
+
+  /**
+   * Обработчик удаления вложенного файла из чата
+   *
+   * @param {Event} event - Событие клика на кнопку удаления
+   *
+   * @description
+   * 1. Находит ближайшую кнопку с классом .form-att-prev__remove
+   * 2. Получает тип файла и индекс из атрибутов data-type и data-index
+   * 3. Удаляет файл из менеджера вложений
+   * 4. Перерисовывает превью оставшихся файлов
+   * 5. Обновляет состояние кнопки отправки
+   *
+   * @see _attachmentManager - Менеджер работы с вложениями
+   * @see _updateSendButtonState - Метод обновления состояния кнопки отправки
+   */
+  private _handleAttachmentRemove(event: Event): void {
+    // Получаем целевой элемент события и находим ближайшую кнопку удаления
+    const target = event.target as HTMLElement;
+    const button = target.closest('.form-att-prev__remove');
+    if (!button) return;
+
+    // Извлекаем тип файла и индекс из атрибутов кнопки
+    const type = button.getAttribute('data-type') as FileType;
+    const index = parseInt(button.getAttribute('data-index') || '', 10);
+
+    // Проверяем корректность индекса
+    if (isNaN(index)) return;
+
+    // Удаляем файл из менеджера вложений
+    this._attachmentManager.removeFile(type, index);
+
+    // Перерисовываем превью с учетом изменений
+    this._attachmentManager.renderPreview(
+      this._chatAttachmentsPreview as HTMLElement
+    );
+
+    // Обновляем состояние кнопки отправки
+    this._updateSendButtonState();
   }
 
   /**
@@ -465,206 +517,18 @@ export default class KeeplyBot {
   private _handleDrop(event: DragEvent): void {
     event.preventDefault();
 
-    // Сбрасываем счётчик и убираем класс при drop
     this._dragEnterCounter = 0;
     if (this._chat) this._chat.classList.remove('drag-over');
 
+    // Проверка наличия перетаскиваемых файлов
     if (event.dataTransfer?.files) {
       const files = [...event.dataTransfer.files];
-
-      // Получаем настройки из capabilities
-      const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
-      // let limit = 1;
-      // if (sendAttachmentsConfig) {
-      //   const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
-      //   if (limitAttr) limit = parseInt(limitAttr, 10);
-      // }
-
-      // Фильтруем файлы по типам, если заданы
-      let filteredFiles = files;
-      if (sendAttachmentsConfig) {
-        const types = sendAttachmentsConfig.getAttribute('data-types');
-        if (types) {
-          const allowedTypes = JSON.parse(types) as string[];
-          filteredFiles = files.filter((file) =>
-            allowedTypes.some((type) => file.type.match(type))
-          );
-        }
-      }
-
-      // Добавляем файлы к выбранным, соблюдая лимит
-      this._addFilesToCategories(filteredFiles);
-
-      this._renderAttachmentsPreview();
+      this._attachmentManager.addFiles(files);
+      this._attachmentManager.renderPreview(
+        this._chatAttachmentsPreview as HTMLElement
+      );
       this._updateSendButtonState();
     }
-  }
-
-  /**
-   * Добавляет файлы в соответствующие категории на основе их типа.
-   *
-   * @param {File[]} files - Массив файлов для добавления.
-   * @private
-   */
-  private _addFilesToCategories(files: File[]): void {
-    const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
-    let limit = 1;
-    if (sendAttachmentsConfig) {
-      const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
-      if (limitAttr) limit = parseInt(limitAttr, 10);
-    }
-
-    files.forEach((file) => {
-      const totalCurrentFiles =
-        this._selectedImages.length +
-        this._selectedVideos.length +
-        this._selectedAudios.length;
-
-      if (totalCurrentFiles >= limit) return;
-
-      if (file.type.startsWith('image/')) {
-        this._selectedImages.push(file);
-      } else if (file.type.startsWith('video/')) {
-        this._selectedVideos.push(file);
-      } else if (file.type.startsWith('audio/')) {
-        this._selectedAudios.push(file);
-      }
-    });
-  }
-
-  /**
-   * Отображает превью выбранных файлов в форме, разделенных по типам.
-   *
-   * @private
-   */
-  private _renderAttachmentsPreview(): void {
-    if (!this._chatAttachmentsPreview) return;
-
-    this._chatAttachmentsPreview.innerHTML = '';
-
-    const totalFiles =
-      this._selectedImages.length +
-      this._selectedVideos.length +
-      this._selectedAudios.length;
-
-    if (totalFiles === 0) {
-      this._chatAttachmentsPreview.classList.add('hidden');
-      return;
-    }
-
-    this._chatAttachmentsPreview.classList.remove('hidden');
-
-    // Функция для создания превью секции
-    const createSection = (files: File[], type: string, icon: string): void => {
-      if (files.length === 0) return;
-
-      const section = createElement({
-        tag: 'div',
-        className: [
-          'form-att-prev__section',
-          `form-att-prev__section--${type}`,
-        ],
-        children: [
-          {
-            tag: 'h5',
-            className: 'form-att-prev__section-title',
-            children: [
-              {
-                tag: 'span',
-                className: 'material-symbols-outlined',
-                text: icon,
-              },
-              {
-                tag: 'span',
-                text:
-                  type === 'images'
-                    ? 'Изображения'
-                    : type === 'videos'
-                      ? 'Видео'
-                      : 'Аудио',
-              },
-            ],
-          },
-          {
-            tag: 'ul',
-            className: 'form-att-prev__list',
-            children: files.map((file) => ({
-              tag: 'li',
-              className: 'form-att-prev__item',
-              children: [
-                {
-                  tag: 'div',
-                  className: 'form-att-prev__image-wrapper',
-                  children: [
-                    type === 'images'
-                      ? {
-                          tag: 'img',
-                          className: 'form-att-prev__image',
-                          attrs: {
-                            src: URL.createObjectURL(file),
-                            alt: file.name,
-                          },
-                        }
-                      : {
-                          tag: 'div',
-                          className: 'form-att-prev__file-icon',
-                          children: [
-                            {
-                              tag: 'span',
-                              className: 'material-symbols-outlined',
-                              text:
-                                type === 'videos' ? 'videocam' : 'audiotrack',
-                            },
-                          ],
-                        },
-                    {
-                      tag: 'button',
-                      className: 'form-att-prev__remove',
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'close',
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  tag: 'span',
-                  className: ['form-att-prev__name', 'has-tooltip'],
-                  text: file.name,
-                  attrs: {
-                    'data-tooltip': file.name,
-                  },
-                },
-              ],
-            })),
-          },
-        ],
-        parent: this._chatAttachmentsPreview as HTMLElement,
-      });
-
-      // Обработчики удаления файлов
-      const removeButtons = section.querySelectorAll('.form-att-prev__remove');
-      removeButtons.forEach((button, index) => {
-        button.addEventListener('click', () => {
-          if (type === 'images') {
-            this._selectedImages.splice(index, 1);
-          } else if (type === 'videos') {
-            this._selectedVideos.splice(index, 1);
-          } else if (type === 'audios') {
-            this._selectedAudios.splice(index, 1);
-          }
-          this._renderAttachmentsPreview();
-          this._updateSendButtonState();
-        });
-      });
-    };
-
-    createSection(this._selectedImages, 'images', 'image');
-    createSection(this._selectedVideos, 'videos', 'videocam');
-    createSection(this._selectedAudios, 'audios', 'audiotrack');
   }
 
   /**
@@ -713,10 +577,9 @@ export default class KeeplyBot {
 
     const message = this._chatTextarea.value.trim();
     const hasText = message.length > 0;
+    const { images, videos, audios } = this._attachmentManager.getState();
     const hasFiles =
-      this._selectedImages.length > 0 ||
-      this._selectedVideos.length > 0 ||
-      this._selectedAudios.length > 0;
+      images.length > 0 || videos.length > 0 || audios.length > 0;
 
     this._chatSendButton.disabled = !hasText && !hasFiles;
   }
