@@ -116,12 +116,18 @@ export interface IBotCapabilities {
 // Интерфейсы для конфигурации вложений
 // =============================================================================
 
+/**
+ * Интерфейс для состояния вложений
+ */
 export interface IAttachmentState {
   images: File[];
   videos: File[];
   audios: File[];
 }
 
+/**
+ * Интерфейс для конфигурации вложений
+ */
 export interface IAttachmentConfig {
   types?: string[]; // например: ['image/*', 'video/mp4']
   limit?: number; // например: 5

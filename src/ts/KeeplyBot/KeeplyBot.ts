@@ -1,12 +1,8 @@
 import createElement from '../utils/createElementFunction';
 import { AttachmentManager } from './managers/AttachmentManager';
+import { CapabilitiesManager } from './managers/CapabilitiesManager';
 import MessageService from './services/MessageService';
-import {
-  IBotCapabilities,
-  IBotUiStructure,
-  ICapabilitiesElementSettings,
-  IUserMessageCard,
-} from './shared/interfaces';
+import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
 import { FileType } from './shared/types';
 import { buildMessageFragment } from './ui/msg-fragment/msgFragmentBuilder';
 
@@ -71,16 +67,19 @@ export default class KeeplyBot {
   private _dragEnterCounter: number = 0;
 
   // Сервисы и менеджеры
-  private _messageService: MessageService = new MessageService();
-  private _attachmentManager: AttachmentManager = new AttachmentManager({
-    types: ['image/*', 'video/*', 'audio/*', 'application/pdf'],
-    limit: 9,
-  });
+  private _messageService: MessageService;
+  private _capabilitiesManager: CapabilitiesManager;
+  private _attachmentManager: AttachmentManager;
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
    */
-  constructor() {}
+  constructor() {
+    const messageService = new MessageService();
+    this._messageService = messageService;
+    this._capabilitiesManager = new CapabilitiesManager(messageService);
+    this._attachmentManager = new AttachmentManager();
+  }
 
   /**
    * Инициализирует KeeplyBot.
@@ -172,121 +171,26 @@ export default class KeeplyBot {
   }
 
   /**
-   * Получает текущие возможности (capabilities) бота с сервера.
-   *
-   * @returns {Promise<IBotCapabilities>} Объект с описанием поддерживаемых
-   * функций бота, разбитый по категориям (ui, messaging, search и т.д.).
-   *
-   * @see {@link IBotCapabilities} - Интерфейс для Capabilities бота
-   */
-  async getCapabilities(): Promise<IBotCapabilities> {
-    return await this._messageService.loadCapabilities();
-  }
-
-  /**
    * Обновляет состояние UI-элементов в соответствии с возможностями бота.
-   * Для каждого элемента применяются настройки: доступность, тултипы, лимиты,
-   * допустимые типы и т.д.
    *
-   * @returns {Promise<void>} Промис, который разрешается, когда обновление завершено.
+   * @returns {Promise<void>}
+   * - Промис, когда обновление состояния завершено.
+   * - Промис при преждевременном выходе из метода.
+   *
+   * @description
+   * Загружает конфигурацию с сервера и применяет ее к UI-элементам бота.
    */
   async updateUiCapabilities(): Promise<void> {
-    const capabilities = await this.getCapabilities();
+    await this._capabilitiesManager.loadCapabilities();
+    this._capabilitiesManager.applyToUi(this._botUi);
 
-    // Проходим по всем категориям: ui, messaging, search и т.д.
-    for (const category in this._botUi) {
-      const uiCategory = this._botUi[category];
-      const capCategory = capabilities[category as keyof IBotCapabilities];
+    const config = this._capabilitiesManager.getSendAttachmentsConfig();
+    if (!config) return;
 
-      if (!capCategory || typeof capCategory !== 'object') continue;
-
-      // Проходим по каждому элементу внутри категории
-      for (const elementKey in uiCategory) {
-        const element = uiCategory[elementKey];
-        const config = capCategory[elementKey as keyof typeof capCategory] as
-          | ICapabilitiesElementSettings
-          | undefined;
-
-        if (element && config) {
-          this._updateElementState(element, config);
-        }
-      }
-    }
-
-    // Установка атрибутов для sendAttachments
-    this._setSendAttachmentsAttributes(capabilities.messaging.sendAttachments);
-  }
-
-  /**
-   * Применяет конфигурацию к конкретному UI-элементу на основе его настроек из capabilities.
-   *
-   * Управляет:
-   * - атрибутом `disabled` (включено/выключено),
-   * - наличием тултипа (`has-tooltip` класс и `data-tooltip`),
-   * - атрибутом `data-limit` (если задан лимит),
-   * - атрибутом `data-types` (в формате JSON, если заданы допустимые типы).
-   *
-   * @param {HTMLElement} element — DOM-элемент, который нужно обновить.
-   * @param {ICapabilitiesElementSettings} config — настройки элемента из capabilities.
-   *
-   * @private
-   */
-  private _updateElementState(
-    element: HTMLElement,
-    config: ICapabilitiesElementSettings
-  ): void {
-    const isEnabled = config.availableState === 'true';
-
-    // Управление доступностью элемента
-    if (isEnabled) {
-      element.removeAttribute('disabled');
-    } else {
-      element.setAttribute('disabled', 'true');
-    }
-
-    // Управление тултипом
-    if (config.hasTooltip) {
-      element.classList.add('has-tooltip');
-      element.setAttribute('data-tooltip', config.tooltip || '');
-    } else {
-      element.classList.remove('has-tooltip');
-      element.removeAttribute('data-tooltip');
-    }
-
-    // Limit (если задан)
-    if (typeof config.limit !== 'undefined') {
-      element.setAttribute('data-limit', String(config.limit));
-    } else {
-      element.removeAttribute('data-limit');
-    }
-
-    // Types (если заданы)
-    if (Array.isArray(config.types) && config.types.length > 0) {
-      // Сохраняем как JSON — надёжнее, чем через запятую
-      // (особенно если типы содержат спецсимволы)
-      element.setAttribute('data-types', JSON.stringify(config.types));
-    } else {
-      element.removeAttribute('data-types');
-    }
-  }
-
-  /**
-   * Устанавливает атрибуты для кнопки прикрепления файлов на основе настроек sendAttachments.
-   *
-   * @param {ICapabilitiesElementSettings} config — настройки sendAttachments из capabilities.
-   *
-   * @private
-   */
-  private _setSendAttachmentsAttributes(
-    config: ICapabilitiesElementSettings
-  ): void {
-    const element = this._botUi.messaging.sendAttachments;
-    if (element) {
-      this._updateElementState(element, config);
-      const types = Array.isArray(config.types) ? config.types : undefined;
-      const limit = typeof config.limit === 'number' ? config.limit : undefined;
-      this._attachmentManager.updateConfig({ types, limit });
-    }
+    this._attachmentManager.updateConfig({
+      types: Array.isArray(config.types) ? config.types : [],
+      limit: typeof config.limit === 'number' ? config.limit : 20,
+    });
   }
 
   /**
