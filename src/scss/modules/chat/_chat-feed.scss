@@ -37,6 +37,9 @@
 
   // Блок "сообщения"
   &__message {
+    &-body {
+      @include flex-col-gap(spacing('lg'));
+    }
     &-item {
       padding: spacing('md');
       border-radius: radius('md');
@@ -47,10 +50,6 @@
       &:not(:last-child) {
         margin-bottom: spacing('md');
       }
-    }
-
-    &-text {
-      margin-bottom: spacing('lg');
     }
 
     &-link {
@@ -178,7 +177,6 @@
 
     &-timestamp {
       display: inline-block;
-      margin-top: spacing('md');
       font-size: font-size('xs');
       color: color('text-secondary');
     }

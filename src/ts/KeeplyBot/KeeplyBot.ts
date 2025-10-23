@@ -1,4 +1,5 @@
 import createElement from '../utils/createElementFunction';
+import { ChatFormController } from './controllers/ChatFormController';
 import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
 import { DragAndDropManager } from './managers/DragAndDropManager';
@@ -68,6 +69,9 @@ export default class KeeplyBot {
   private _lazyLoader!: LazyLoader | null;
   private _dragDropManager!: DragAndDropManager | null;
 
+  // Контроллеры
+  private _formController!: ChatFormController;
+
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
    */
@@ -102,23 +106,15 @@ export default class KeeplyBot {
    */
   private _handleEvents(): void {
     // Обработка отправки сообщения через форму
-    if (this._chatForm) {
-      this._chatForm.addEventListener(
-        'submit',
-        this._handleChatFormSubmit.bind(this)
+    if (this._chatForm && this._chatTextarea && this._chatSendButton) {
+      this._formController = new ChatFormController(
+        this._chatForm,
+        this._chatTextarea,
+        this._chatSendButton,
+        async (text) => this._submitMessage(text),
+        () => this._updateSendButtonState()
       );
-    }
-
-    // Обработка ввода текста в поле ввода
-    if (this._chatTextarea) {
-      this._chatTextarea.addEventListener(
-        'input',
-        this._handleTextareaInput.bind(this)
-      );
-      this._chatTextarea.addEventListener(
-        'keydown',
-        this._handleTextareaKeydown.bind(this)
-      );
+      this._formController.init();
     }
 
     // Обработка прикрепления файлов
@@ -197,57 +193,43 @@ export default class KeeplyBot {
   /**
    * Обработчик события отправки сообщения через форму чата.
    *
-   * @description
-   * Получает данные сообщения из формы, отправляет их на сервер,
-   * и обновляет интерфейс чата.
-   *
-   * @param {Event} event - Событие отправки формы.
+   * @param {string} text - Текст сообщения.
    * @returns {Promise<void>} Промис, который разрешается, когда отправка
    * сообщения завершена.
    *
-   * @private
+   * @description
+   * Получает данные сообщения из формы, отправляет их на сервер,
+   * и обновляет интерфейс чата.
    */
-  private async _handleChatFormSubmit(event: Event): Promise<void> {
-    event.preventDefault();
-    if (!this._chatForm) return;
-
-    const message = this._getUserMessageFromForm();
-    const hasText = message && message.trim().length > 0;
-
+  private async _submitMessage(text: string): Promise<void> {
     const { images, videos, audios } = this._attachmentManager.getState();
     const hasFiles =
       images.length > 0 || videos.length > 0 || audios.length > 0;
     const allFiles = [...images, ...videos, ...audios];
 
-    if (hasText || hasFiles) {
+    if (text.trim().length > 0 || hasFiles) {
       try {
         const allMessages = await this._messageService.submitUserMessage(
-          message || '',
+          text,
           allFiles
         );
-        // После отправки показываем последние 10 сообщений для поддержания
-        // ленивой подгрузки
         this._loadedMessages = allMessages.slice(-this._messagePerPage);
         this._displayMessages(this._loadedMessages);
-        this._scrollToBottom(); // Прокручиваем до последнего сообщения
+        this._scrollToBottom();
 
-        // Сбрасываем LazyLoader, потому что чат "обновился"
         if (this._lazyLoader) this._lazyLoader.reset();
       } catch (error) {
         console.error('Failed to send message:', error);
       }
     }
 
-    // Сброс формы и файлов
-    this._chatForm.reset();
+    // Сброс формы
+    this._chatForm?.reset();
     this._attachmentManager.clear();
     this._attachmentManager.renderPreview(
       this._chatAttachmentsPreview as HTMLElement
     );
-    if (this._chatAttachmentsPreview) {
-      this._chatAttachmentsPreview.classList.add('hidden');
-    }
-    if (this._lazyLoader) this._lazyLoader.reset(this._messagePerPage);
+    this._chatAttachmentsPreview?.classList.add('hidden');
     this._updateSendButtonState();
   }
 
@@ -365,35 +347,6 @@ export default class KeeplyBot {
   }
 
   /**
-   * Обработчик события ввода текста в текстовое поле чата.
-   *
-   * @private
-   */
-  private _handleTextareaInput(): void {
-    this._updateSendButtonState();
-  }
-
-  /**
-   * Обработчик события нажатия клавиши в текстовом поле чата.
-   *
-   * @description
-   * Если нажата клавиша Enter и не нажата одновременно клавиша Shift,
-   * то отправляет сообщение.
-   *
-   * @param {KeyboardEvent} event - Событие нажатия клавиши.
-   *
-   * @private
-   */
-  private _handleTextareaKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      if (this._chatForm && !this._chatSendButton?.disabled) {
-        this._chatForm.requestSubmit();
-      }
-    }
-  }
-
-  /**
    * Обновляет состояние кнопки отправки сообщения.
    *
    * @description
@@ -415,20 +368,6 @@ export default class KeeplyBot {
       images.length > 0 || videos.length > 0 || audios.length > 0;
 
     this._chatSendButton.disabled = !hasText && !hasFiles;
-  }
-
-  /**
-   * Получает текст сообщения из формы.
-   *
-   * @returns {string | undefined}
-   * - Текст сообщения
-   * - Если форма не определена, возвращает `undefined`
-   */
-  private _getUserMessageFromForm(): string | undefined {
-    if (!this._chatForm) return;
-
-    const formData = new FormData(this._chatForm);
-    return formData.get('chat-textarea') as string;
   }
 
   /**
