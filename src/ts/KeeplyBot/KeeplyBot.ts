@@ -58,8 +58,7 @@ export default class KeeplyBot {
   private readonly _skeleton = document.querySelector('.chat__skeleton');
   private readonly _chat = document.querySelector('.chat');
 
-  // Состояние для ленивой подгрузки сообщений
-  private _loadedMessages: IUserMessageCard[] = [];
+  // Параметры ленивой загрузки
   private readonly _messagePerPage = 10;
 
   // Сервисы и менеджеры
@@ -209,15 +208,13 @@ export default class KeeplyBot {
 
     if (text.trim().length > 0 || hasFiles) {
       try {
-        const allMessages = await this._messageService.submitUserMessage(
+        const newMessage = await this._messageService.submitUserMessage(
           text,
           allFiles
         );
-        this._loadedMessages = allMessages.slice(-this._messagePerPage);
-        this._displayMessages(this._loadedMessages);
+        this._lazyLoader?.appendNewMessages(newMessage);
+        this._lazyLoader?.reset();
         this._scrollToBottom();
-
-        if (this._lazyLoader) this._lazyLoader.reset();
       } catch (error) {
         console.error('Failed to send message:', error);
       }
@@ -386,13 +383,15 @@ export default class KeeplyBot {
   private async _loadMessages(): Promise<void> {
     this._showSkeleton();
     try {
-      const initialMessages = await this._messageService.loadInitialMessages(
-        this._messagePerPage
-      );
-      this._loadedMessages = [...initialMessages];
-
+      // Инициализируем LazyLoader ДО загрузки сообщений
       this._initLazyLoader();
-      this._displayMessages(this._loadedMessages);
+
+      if (!this._lazyLoader) throw Error(`LazyLoader не инициализирован`);
+
+      // Загружаем начальные сообщения через LazyLoader
+      await this._lazyLoader.loadInitial();
+
+      this._displayMessages(this._lazyLoader.getMessages());
       this._scrollToBottom();
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -409,13 +408,11 @@ export default class KeeplyBot {
     if (!(this._chatFeedWrap instanceof HTMLElement)) return;
     if (this._lazyLoader) this._lazyLoader.dispose();
 
+    // Создаём новый LazyLoader
     this._lazyLoader = new LazyLoader(
       this._chatFeedWrap,
       this._messageService,
-      (newMessages) => {
-        this._loadedMessages = [...newMessages, ...this._loadedMessages];
-        this._displayMessages(this._loadedMessages);
-      },
+      (allMessages: IUserMessageCard[]) => this._displayMessages(allMessages),
       { messagePerPage: this._messagePerPage }
     );
 

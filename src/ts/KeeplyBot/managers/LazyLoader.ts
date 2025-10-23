@@ -6,11 +6,6 @@ import MessageService from '../services/MessageService';
 import { ILazyLoaderOptions, IUserMessageCard } from '../shared/interfaces';
 
 /**
- * Тип функции обратного вызова для обработки загруженных сообщений
- */
-export type OnLoadCallback = (newMessages: IUserMessageCard[]) => void;
-
-/**
  * Тип функции обратного вызова для обработки события прокрутки
  */
 export type ScrollHandler = ((event: Event) => void) | null;
@@ -26,23 +21,38 @@ export type ScrollHandler = ((event: Event) => void) | null;
  * @see {@link MessageService} - Сервис для работы с сообщениями
  * @see {@link ILazyLoaderOptions} - Конфигурационные параметры
  */
+export type OnMessagesUpdate = (allMessages: IUserMessageCard[]) => void;
+
+/**
+ * Класс для реализации ленивой загрузки сообщений при прокрутке контейнера
+ *
+ * @description
+ * Управляет загрузкой сообщений по мере прокрутки контейнера вверх.
+ * Использует MessageService для получения данных и вызывает callback
+ * при обновлении сообщений.
+ *
+ * @see {@link MessageService} - Сервис для работы с сообщениями
+ * @see {@link ILazyLoaderOptions} - Конфигурационные параметры
+ */
+
 export default class LazyLoader {
+  private _messages: IUserMessageCard[] = [];
   private _currentOffset: number = 0;
   private _isLoading: boolean = false;
   private _hasMore: boolean = true;
   private _scrollContainer: HTMLElement;
   private _messageService: MessageService;
-  private _onLoadCallback: OnLoadCallback;
-  private _scrollHandler!: ScrollHandler;
+  private _onUpdate: OnMessagesUpdate;
+  private _scrollHandler: ScrollHandler = null;
   private readonly _messagePerPage: number;
   private readonly _scrollThreshold: number;
 
   /**
-   * Создает экземпляр класса менеджера LazyLoader
+   * Создает экземпляр класса LazyLoader
    *
    * @param {HTMLElement} scrollContainer - Контейнер для отслеживания прокрутки
    * @param {MessageService} messageService - Сервис для загрузки сообщений
-   * @param {OnLoadCallback} onLoadCallback - Callback для обработки новых данных
+   * @param {OnMessagesUpdate} onUpdate - Callback для обработки обновленных данных
    * @param {ILazyLoaderOptions} [options={}] - Опции конфигурации
    *
    * @example
@@ -56,35 +66,54 @@ export default class LazyLoader {
   constructor(
     scrollContainer: HTMLElement,
     messageService: MessageService,
-    onLoadCallback: OnLoadCallback,
+    onUpdate: OnMessagesUpdate,
     options: ILazyLoaderOptions = {}
   ) {
     this._scrollContainer = scrollContainer;
     this._messageService = messageService;
-    this._onLoadCallback = onLoadCallback;
+    this._onUpdate = onUpdate;
     this._messagePerPage = options.messagePerPage ?? 10;
     this._scrollThreshold = options.scrollThreshold ?? 50;
+  }
 
-    // Первая порция сообщений уже загружена
-    this._currentOffset = this._messagePerPage;
+  /**
+   * Загружает начальную порцию сообщений
+   *
+   * @description
+   * 1. Выполняет запрос к MessageService.loadInitialMessages()
+   * 2. Обновляет _messages, _currentOffset и _hasMore
+   * 3. Вызывает callback с новыми данными
+   *
+   * @see {@link MessageService.loadInitialMessages} - Метод для загрузки
+   * начальных сообщений
+   */
+  async loadInitial(): Promise<void> {
+    const messages = await this._messageService.loadInitialMessages(
+      this._messagePerPage
+    );
+    this._messages = [...messages];
+    this._currentOffset = messages.length;
+    this._hasMore = messages.length === this._messagePerPage;
+    this._onUpdate(this._messages);
   }
 
   /**
    * Подключает обработчик события прокрутки
+   *
+   * @description
+   * Добавляет слушатель 'scroll' к контейнеру, который будет
+   * вызывать _handleScroll
    */
   attachScrollListener(): void {
-    // Сохраняем ссылку на обработчик, чтобы потом отписаться
     this._scrollHandler = this._handleScroll.bind(this);
     this._scrollContainer.addEventListener('scroll', this._scrollHandler);
   }
 
   /**
-   * Освобождает ресурсы, связанные с обработкой событий прокрутки
+   * Отключает обработчик события прокрутки
    *
    * @description
-   * 1. Проверяет существование обработчика прокрутки
-   * 2. Удаляет обработчик события 'scroll' из контейнера
-   * 3. Сбрасывает ссылку на обработчик, чтобы предотвратить утечку памяти
+   * Удаляет слушатель 'scroll' из контейнера и сбрасывает ссылку на обработчик
    */
   dispose(): void {
     if (!this._scrollHandler) return;
@@ -94,23 +123,35 @@ export default class LazyLoader {
 
   /**
    * Сбрасывает состояние загрузчика
-   *
-   * @param {number} [offset=this._messagePerPage] - Начальное смещение
-   * @description
-   * Восстанавливает начальные значения:
-   * - _currentOffset = offset
-   * - _hasMore = true
-   * - _isLoading = false
-   *
-   * @example
-   * // Сброс с дефолтным смещением на основе актуального this._messagePerPage
-   * loader.reset();
-   * loader.reset(30); // Сброс с пользовательским смещением
    */
-  reset(offset: number = this._messagePerPage): void {
-    this._currentOffset = offset;
+  reset(): void {
+    this._currentOffset = this._messages.length;
     this._hasMore = true;
     this._isLoading = false;
+  }
+
+  /**
+   * Возвращает копию массива сообщений
+   *
+   * @returns {IUserMessageCard[]} Копия массива сообщений
+   *
+   * @see {@link IUserMessageCard} - Интерфейс сообщения
+   */
+  getMessages(): IUserMessageCard[] {
+    return [...this._messages];
+  }
+
+  /**
+   * Добавляет новые сообщения в конец списка
+   *
+   * @param {IUserMessageCard[]} messages - Массив новых сообщений
+   *
+   * @see {@link IUserMessageCard} - Интерфейс сообщения
+   */
+  appendNewMessages(messages: IUserMessageCard[]): void {
+    this._messages = [...this._messages, ...messages];
+    this._currentOffset += messages.length;
+    this._onUpdate(this._messages);
   }
 
   /**
@@ -118,16 +159,7 @@ export default class LazyLoader {
    *
    * @param {Event} event - Событие прокрутки
    *
-   * @description
-   * 1. Проверяет условия для начала загрузки:
-   *    - Не выполняется текущая загрузка
-   *    - Есть доступные сообщения
-   *    - Цель события - HTMLElement
-   * 2. Если достигнут порог прокрутки (scrollTop < threshold):
-   *    - Загружает новые сообщения через MessageService
-   *    - Обновляет смещение
-   *    - Вызывает callback с новыми данными
-   *    - Восстанавливает позицию скролла
+   * @see {@link MessageService.loadMoreMessages} - Метод загрузки сообщений
    */
   private async _handleScroll(event: Event): Promise<void> {
     if (
@@ -139,58 +171,31 @@ export default class LazyLoader {
     }
 
     const target = event.target;
-    const scrollTop = target.scrollTop;
-
-    // Активируем загрузку только если прокрутили близко к верху
-    if (scrollTop > this._scrollThreshold) return;
+    if (target.scrollTop > this._scrollThreshold) return;
 
     this._isLoading = true;
-
     try {
       const newMessages = await this._messageService.loadMoreMessages(
         this._currentOffset,
         this._messagePerPage
       );
 
-      if (newMessages.length === 0) {
-        this._hasMore = false;
-        return;
-      }
+      if (newMessages.length < this._messagePerPage) this._hasMore = false;
+      if (newMessages.length === 0) return;
 
       const oldScrollHeight = target.scrollHeight;
+      this._messages = [...newMessages, ...this._messages];
+      this._currentOffset += newMessages.length;
 
-      // Обновляем смещение для следующей загрузки
-      this._currentOffset += this._messagePerPage;
+      this._onUpdate(this._messages);
 
-      // Передаем новые сообщения в callback
-      this._onLoadCallback(newMessages);
-
-      // Сохраняем позицию прокрутки после добавления новых сообщений
-      this._restoreScrollPosition(target, oldScrollHeight, scrollTop);
+      // Восстановление позиции скролла
+      const newScrollHeight = target.scrollHeight;
+      target.scrollTop = newScrollHeight - oldScrollHeight + target.scrollTop;
     } catch (error) {
       console.error('Ошибка загрузки сообщений:', error);
     } finally {
       this._isLoading = false;
     }
-  }
-
-  /**
-   * Восстанавливает позицию прокрутки после добавления новых сообщений
-   *
-   * @param {HTMLElement} target - Контейнер прокрутки
-   * @param {number} oldScrollHeight - Ранняя высота контейнера
-   * @param {number} scrollTop - Текущая позиция прокрутки
-   *
-   * @description
-   * Рассчитывает новую позицию прокрутки, чтобы сохранить видимость тех же
-   * сообщений после добавления новых данных в начало контейнера.
-   */
-  private _restoreScrollPosition(
-    target: HTMLElement,
-    oldScrollHeight: number,
-    scrollTop: number
-  ): void {
-    const newScrollHeight = target.scrollHeight;
-    target.scrollTop = newScrollHeight - oldScrollHeight + scrollTop;
   }
 }
