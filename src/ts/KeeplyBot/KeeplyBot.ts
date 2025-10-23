@@ -1,6 +1,7 @@
 import createElement from '../utils/createElementFunction';
 import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
+import { DragAndDropManager } from './managers/DragAndDropManager';
 import LazyLoader from './managers/LazyLoader';
 import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
@@ -60,14 +61,12 @@ export default class KeeplyBot {
   private _loadedMessages: IUserMessageCard[] = [];
   private readonly _messagePerPage = 10;
 
-  // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
-  private _dragEnterCounter: number = 0;
-
   // Сервисы и менеджеры
   private _messageService: MessageService;
   private _capabilitiesManager: CapabilitiesManager;
   private _attachmentManager: AttachmentManager;
   private _lazyLoader!: LazyLoader | null;
+  private _dragDropManager!: DragAndDropManager | null;
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
@@ -145,9 +144,19 @@ export default class KeeplyBot {
     }
 
     // Обработка Drag & Drop для загрузки файлов
-    this._handleDragAndDrop();
-
-    // Обработка прокрутки для ленивой подгрузки
+    if (this._chat instanceof HTMLElement) {
+      this._dragDropManager = new DragAndDropManager(this._chat, (files) => {
+        this._attachmentManager.addFiles(files);
+        this._attachmentManager.renderPreview(
+          this._chatAttachmentsPreview as HTMLElement
+        );
+        if (this._chatAttachmentsPreview) {
+          this._chatAttachmentsPreview.classList.remove('hidden');
+        }
+        this._updateSendButtonState();
+      });
+      this._dragDropManager.attach();
+    }
 
     // Обработка изменения состояния файлов
     // Добавляем слушатель для обновления состояния кнопки при изменении файлов
@@ -353,114 +362,6 @@ export default class KeeplyBot {
       this._chatAttachmentsPreview as HTMLElement
     );
     this._updateSendButtonState();
-  }
-
-  /**
-   * Обработчик функционала Drag & Drop для загрузки файлов.
-   *
-   * @description
-   * Добавляет обработчики событий dragover, dragenter, dragleave и drop.
-   *
-   * @private
-   */
-  private _handleDragAndDrop(): void {
-    const dragDropTarget = this._chat || document;
-
-    dragDropTarget.addEventListener('dragover', (event) => {
-      this._handleDragOver(event as DragEvent);
-    });
-    dragDropTarget.addEventListener('dragenter', (event) => {
-      this._handleDragEnter(event as DragEvent);
-    });
-    dragDropTarget.addEventListener('dragleave', (event) => {
-      this._handleDragLeave(event as DragEvent);
-    });
-    dragDropTarget.addEventListener('drop', (event) => {
-      this._handleDrop(event as DragEvent);
-    });
-  }
-
-  /**
-   * Обработчик события dragover для чата или документа.
-   *
-   * @description
-   * Предотвращает стандартное поведение браузера и добавляет визуальную индикацию.
-   *
-   * @param {DragEvent} event - Событие dragover.
-   *
-   * @private
-   */
-  private _handleDragOver(event: DragEvent): void {
-    event.preventDefault();
-    if (this._chat) this._chat.classList.add('drag-over');
-  }
-
-  /**
-   * Обработчик события dragenter для чата или документа.
-   *
-   * @description
-   * Добавляет визуальную индикацию при входе перетаскиваемого объекта.
-   * Использует счётчик для предотвращения мерцания при входе/выходе из дочерних элементов.
-   *
-   * @param {DragEvent} event - Событие dragenter.
-   *
-   * @private
-   */
-  private _handleDragEnter(event: DragEvent): void {
-    event.preventDefault();
-
-    this._dragEnterCounter++;
-    if (this._chat && this._dragEnterCounter === 1) {
-      this._chat.classList.add('drag-over');
-    }
-  }
-
-  /**
-   * Обработчик события dragleave для чата или документа.
-   *
-   * @description
-   * Убирает визуальную индикацию при выходе перетаскиваемого объекта.
-   * Использует счётчик для предотвращения мерцания при входе/выходе из дочерних элементов.
-   *
-   * @param {DragEvent} event - Событие dragleave.
-   *
-   * @private
-   */
-  private _handleDragLeave(event: DragEvent): void {
-    event.preventDefault();
-
-    this._dragEnterCounter--;
-    if (this._chat && this._dragEnterCounter === 0) {
-      this._chat.classList.remove('drag-over');
-    }
-  }
-
-  /**
-   * Обработчик события drop для чата или документа.
-   *
-   * @description
-   * Обрабатывает сброс файлов на чат или документ, добавляет их к выбранным файлам,
-   * обновляет превью и состояние кнопки отправки.
-   *
-   * @param {DragEvent} event - Событие drop.
-   *
-   * @private
-   */
-  private _handleDrop(event: DragEvent): void {
-    event.preventDefault();
-
-    this._dragEnterCounter = 0;
-    if (this._chat) this._chat.classList.remove('drag-over');
-
-    // Проверка наличия перетаскиваемых файлов
-    if (event.dataTransfer?.files) {
-      const files = [...event.dataTransfer.files];
-      this._attachmentManager.addFiles(files);
-      this._attachmentManager.renderPreview(
-        this._chatAttachmentsPreview as HTMLElement
-      );
-      this._updateSendButtonState();
-    }
   }
 
   /**
