@@ -1,4 +1,3 @@
-import createElement from '../utils/createElementFunction';
 import { ChatFormController } from './controllers/ChatFormController';
 import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
@@ -7,7 +6,7 @@ import LazyLoader from './managers/LazyLoader';
 import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
 import { FileType } from './shared/types';
-import { buildMessageFragment } from './ui/msg-fragment/msgFragmentBuilder';
+import ChatRenderer from './ui/chat-renderer/ChatRenderer';
 
 /**
  * Класс для управления UI-элементами чат-бота Keeply на основе его возможностей (capabilities).
@@ -52,10 +51,15 @@ export default class KeeplyBot {
     document.querySelector('.chat__btn-attach');
   private readonly _chatAttachmentsPreview: HTMLElement | null =
     document.querySelector('.form-att-prev');
-  private readonly _chatContent = document.querySelector('.chat__content');
-  private readonly _chatFeedWrap = document.querySelector('.chat__feed-wrap');
-  private readonly _emptyBlock = document.querySelector('.chat__empty-block');
-  private readonly _skeleton = document.querySelector('.chat__skeleton');
+  private readonly _chatFeedWrap: HTMLElement | null = document.querySelector(
+    '.chat__feed-wrap'
+  ) as HTMLElement | null;
+  private readonly _chatContent: HTMLElement | null = document.querySelector(
+    '.chat__content'
+  ) as HTMLElement | null;
+  private readonly _emptyBlock: HTMLElement | null = document.querySelector(
+    '.chat__empty-block'
+  ) as HTMLElement | null;
   private readonly _chat = document.querySelector('.chat');
 
   // Параметры ленивой загрузки
@@ -71,6 +75,9 @@ export default class KeeplyBot {
   // Контроллеры
   private _formController!: ChatFormController;
 
+  // UI
+  private _renderer!: ChatRenderer;
+
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
    */
@@ -79,6 +86,7 @@ export default class KeeplyBot {
     this._messageService = messageService;
     this._capabilitiesManager = new CapabilitiesManager(messageService);
     this._attachmentManager = new AttachmentManager();
+    this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
   }
 
   /**
@@ -214,7 +222,7 @@ export default class KeeplyBot {
         );
         this._lazyLoader?.appendNewMessages(newMessage);
         this._lazyLoader?.reset();
-        this._scrollToBottom();
+        this._renderer.scrollToBottom(this._chatFeedWrap);
       } catch (error) {
         console.error('Failed to send message:', error);
       }
@@ -371,7 +379,6 @@ export default class KeeplyBot {
    * Загружает начальные сообщения и инициализирует ленивую загрузку
    *
    * @description
-   * 1. Отображает индикатор загрузки (skeleton)
    * 2. Загружает начальную порцию сообщений
    * 3. Инициализирует LazyLoader для подгрузки старых сообщений при прокрутке
    * 4. Обновляет интерфейс и позиционирует скролл
@@ -381,7 +388,6 @@ export default class KeeplyBot {
    * сообщений из MessageService
    */
   private async _loadMessages(): Promise<void> {
-    this._showSkeleton();
     try {
       // Инициализируем LazyLoader ДО загрузки сообщений
       this._initLazyLoader();
@@ -391,13 +397,11 @@ export default class KeeplyBot {
       // Загружаем начальные сообщения через LazyLoader
       await this._lazyLoader.loadInitial();
 
-      this._displayMessages(this._lazyLoader.getMessages());
-      this._scrollToBottom();
+      this._renderer.render(this._lazyLoader.getMessages());
+      this._renderer.scrollToBottom(this._chatFeedWrap);
     } catch (error) {
       console.error('Failed to load messages:', error);
-      this._displayMessages([]);
-    } finally {
-      this._hideSkeleton();
+      this._renderer.render([]);
     }
   }
 
@@ -412,41 +416,11 @@ export default class KeeplyBot {
     this._lazyLoader = new LazyLoader(
       this._chatFeedWrap,
       this._messageService,
-      (allMessages: IUserMessageCard[]) => this._displayMessages(allMessages),
+      (allMessages: IUserMessageCard[]) => this._renderer.render(allMessages),
       { messagePerPage: this._messagePerPage }
     );
 
     this._lazyLoader.attachScrollListener();
-  }
-
-  /**
-   * Показывает скелетон загрузки.
-   *
-   * @private
-   */
-  private _showSkeleton(): void {
-    if (!this._chatContent || !this._skeleton) return;
-    this._skeleton.classList.remove('hidden');
-  }
-
-  /**
-   * Прокручивает чат до самого последнего сообщения.
-   *
-   * @private
-   */
-  private _scrollToBottom(): void {
-    if (!this._chatFeedWrap) return;
-    this._chatFeedWrap.scrollTop = this._chatFeedWrap.scrollHeight;
-  }
-
-  /**
-   * Скрывает скелетон загрузки.
-   *
-   * @private
-   */
-  private _hideSkeleton(): void {
-    if (!this._skeleton) return;
-    this._skeleton.classList.add('hidden');
   }
 
   /**
@@ -490,47 +464,5 @@ export default class KeeplyBot {
     } catch (error) {
       console.error('Failed to download file:', error);
     }
-  }
-
-  /**
-   * Отображает список всех отправленных сообщений в интерфейсе чата
-   *
-   * @param {IUserMessageCard[]} messages - Массив карточек сообщений
-   * для отображения
-   *
-   * @description
-   * 1. Очищает текущее содержимое чата
-   * 2. Если нет сообщений:
-   *    - Показывает блок "Пустой чат"
-   * 3. Если есть сообщения:
-   *    - Скрывает блок "Пустой чат"
-   *    - Создает и добавляет список сообщений
-   *
-   * @see {@link buildMessageFragment} - Функция рендеринга сообщений в DOM-фрагмент
-   * @see this._chatContent - Контейнер для отображения сообщений
-   * @see this._emptyBlock - Блок, отображаемый при отсутствии сообщений
-   */
-  private _displayMessages(messages: IUserMessageCard[]): void {
-    // Очистка содержимого чата перед отображением новых сообщений
-    this._chatContent?.replaceChildren();
-
-    // Показ блока "Пустой чат", если нет сообщений
-    if (messages.length === 0) {
-      if (this._emptyBlock) this._chatContent?.append(this._emptyBlock);
-      return;
-    }
-
-    // Скрытие блока "Пустой чат"
-    if (this._emptyBlock instanceof HTMLElement) {
-      this._emptyBlock.style.display = 'none';
-    }
-
-    // Создание и добавление списка сообщений в DOM
-    const list = createElement({
-      tag: 'ul',
-      className: 'chat__messages-list',
-    });
-    list.append(buildMessageFragment(messages));
-    this._chatContent?.append(list);
   }
 }
