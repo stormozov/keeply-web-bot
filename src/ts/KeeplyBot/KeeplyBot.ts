@@ -2,6 +2,7 @@
 // Модуль централизованной логики KeeplyBot
 // =============================================================================
 
+import createElement from '../utils/createElementFunction';
 import { ChatFormController } from './controllers/ChatFormController';
 import FileDownloadHandler from './handlers/FileDownloadHandler';
 import { AttachmentManager } from './managers/AttachmentManager';
@@ -14,9 +15,15 @@ import { FileType } from './shared/types';
 import ChatRenderer from './ui/chat-renderer/ChatRenderer';
 
 /**
- * Класс для управления UI-элементами чат-бота Keeply на основе его возможностей (capabilities).
- * Автоматически настраивает состояние кнопок, полей ввода и других элементов интерфейса
- * в зависимости от полученных данных о поддерживаемых функциях.
+ * Основной класс для управления функциональностью чат-бота Keeply
+ *
+ * @description
+ * Объединяет все компоненты и логику работы чата:
+ * - Инициализация и обработка событий UI
+ * - Работу с сообщениями и вложениями
+ * - Ленивую загрузку старых сообщений
+ * - Обработку Drag & Drop файлов
+ * - Отображение интерфейса
  */
 export default class KeeplyBot {
   // UI-элементы (инициализируются из корневого элемента)
@@ -28,7 +35,7 @@ export default class KeeplyBot {
   private _chatContent!: HTMLElement | null;
   private _chatFeedWrap!: HTMLElement | null;
   private _emptyBlock!: HTMLElement | null;
-  private _chat!: HTMLElement | null;
+  private _appElement!: HTMLElement | null;
 
   // Параметры ленивой загрузки
   private readonly _messagePerPage = 10;
@@ -65,18 +72,8 @@ export default class KeeplyBot {
     this._attachmentManager = attachmentManager;
     this._fileDownloadHandler = fileDownloadHandler;
 
-    // Извлекаем UI-элементы из rootElement
-    this._chat = this._rootElement.querySelector('.chat');
-    this._chatForm = this._rootElement.querySelector('.chat__form');
-    this._chatTextarea = this._rootElement.querySelector('.chat__textarea');
-    this._chatSendButton = this._rootElement.querySelector('.chat__submit');
-    this._chatAttachButton =
-      this._rootElement.querySelector('.chat__btn-attach');
-    this._chatAttachmentsPreview =
-      this._rootElement.querySelector('.form-att-prev');
-    this._chatContent = this._rootElement.querySelector('.chat__content');
-    this._chatFeedWrap = this._rootElement.querySelector('.chat__feed-wrap');
-    this._emptyBlock = this._rootElement.querySelector('.chat__empty-block');
+    // Инициализация UI элементов
+    this._initUiElements(this._rootElement);
 
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
   }
@@ -88,7 +85,21 @@ export default class KeeplyBot {
     void this.updateUiCapabilities();
     this._handleEvents();
     void this._loadMessages();
-    this._updateSendButtonState();
+  }
+
+  private _initUiElements(root: HTMLElement): void {
+    this._appElement = root;
+    if (!this._appElement) {
+      console.error(`Chat root element not found: ${root}`);
+    }
+    this._chatForm = root.querySelector('.chat__form');
+    this._chatTextarea = root.querySelector('.chat__textarea');
+    this._chatSendButton = root.querySelector('.chat__submit');
+    this._chatAttachButton = root.querySelector('.chat__btn-attach');
+    this._chatAttachmentsPreview = root.querySelector('.form-att-prev');
+    this._chatContent = root.querySelector('.chat__content');
+    this._chatFeedWrap = root.querySelector('.chat__feed-wrap');
+    this._emptyBlock = root.querySelector('.chat__empty-block');
   }
 
   /**
@@ -104,65 +115,11 @@ export default class KeeplyBot {
    * @private
    */
   private _handleEvents(): void {
-    // Обработка отправки сообщения через форму
-    if (this._chatForm && this._chatTextarea && this._chatSendButton) {
-      this._formController = new ChatFormController(
-        this._chatForm,
-        this._chatTextarea,
-        this._chatSendButton,
-        async (text) => this._submitMessage(text),
-        () => this._updateSendButtonState()
-      );
-      this._formController.init();
-    }
-
-    // Обработка прикрепления файлов
-    if (this._chatAttachButton) {
-      this._chatAttachButton.addEventListener(
-        'click',
-        this._handleAttachButtonClick.bind(this)
-      );
-    }
-
-    // Делегирование для удаления вложений
-    if (this._chatAttachmentsPreview) {
-      this._chatAttachmentsPreview.addEventListener(
-        'click',
-        this._handleAttachmentRemove.bind(this)
-      );
-      if (this._chatAttachmentsPreview) {
-        this._chatAttachmentsPreview.addEventListener(
-          'click',
-          this._handleAttachmentClearAll.bind(this)
-        );
-      }
-    }
-
-    // Обработка Drag & Drop для загрузки файлов
-    if (this._chat instanceof HTMLElement) {
-      this._dragDropManager = new DragAndDropManager(this._chat, (files) => {
-        this._attachmentManager.addFiles(files);
-        this._attachmentManager.renderPreview(
-          this._chatAttachmentsPreview as HTMLElement
-        );
-        if (this._chatAttachmentsPreview) {
-          this._chatAttachmentsPreview.classList.remove('hidden');
-        }
-        this._updateSendButtonState();
-      });
-      this._dragDropManager.attach();
-    }
-
-    // Обработка изменения состояния файлов
-    // Добавляем слушатель для обновления состояния кнопки при изменении файлов
+    this._handleFormController();
+    this._initAttachmentHandlers();
+    this._initDragAndDrop();
+    this._initFileDownloadHandler();
     this._updateSendButtonState();
-
-    // Обработка клика кнопку "Скачать" у файла в сообщении
-    if (this._chatContent) {
-      this._chatContent.addEventListener('click', (e) => {
-        this._fileDownloadHandler.handle(e);
-      });
-    }
   }
 
   /**
@@ -186,6 +143,21 @@ export default class KeeplyBot {
       types: Array.isArray(config.types) ? config.types : [],
       limit: typeof config.limit === 'number' ? config.limit : 20,
     });
+  }
+
+  /**
+   * Обработка отправки сообщения через форму чата.
+   */
+  private _handleFormController(): void {
+    if (!this._chatForm && !this._chatTextarea && !this._chatSendButton) return;
+    this._formController = new ChatFormController(
+      this._chatForm,
+      this._chatTextarea,
+      this._chatSendButton,
+      async (text) => this._submitMessage(text),
+      () => this._updateSendButtonState()
+    );
+    this._formController.init();
   }
 
   /**
@@ -230,17 +202,46 @@ export default class KeeplyBot {
   }
 
   /**
+   * Инициализация обработчиков событий для кнопки прикрепления файла и превью
+   * файлов
+   */
+  private _initAttachmentHandlers(): void {
+    if (this._chatAttachButton) {
+      this._chatAttachButton.addEventListener(
+        'click',
+        this._handleAttachButtonClick.bind(this)
+      );
+    }
+
+    if (this._chatAttachmentsPreview) {
+      this._chatAttachmentsPreview.addEventListener(
+        'click',
+        this._handleAttachmentRemove.bind(this)
+      );
+      this._chatAttachmentsPreview.addEventListener(
+        'click',
+        this._handleAttachmentClearAll.bind(this)
+      );
+    }
+  }
+
+  /**
    * Обработчик события клика по кнопке прикрепления файла.
    *
    * @description
-   * Создает скрытый input для выбора файлов, настраивает его и вызывает диалог выбора.
+   * Создает скрытый input для выбора файлов, настраивает его и вызывает диалог
+   * выбора.
    *
    * @private
    */
   private _handleAttachButtonClick(): void {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.multiple = true;
+    const fileInput = createElement({
+      tag: 'input',
+      attrs: {
+        type: 'file',
+        multiple: 'true',
+      },
+    }) as HTMLInputElement;
 
     // Получаем настройки из capabilities
     const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
@@ -252,20 +253,19 @@ export default class KeeplyBot {
       }
 
       const limit = sendAttachmentsConfig.getAttribute('data-limit');
-      if (limit) {
-        fileInput.setAttribute('data-limit', limit);
-      }
+      if (limit) fileInput.setAttribute('data-limit', limit);
     }
 
     fileInput.addEventListener('change', (event) => {
       const target = event.target as HTMLInputElement;
-      if (target.files) {
-        this._attachmentManager.addFiles([...target.files]);
-        this._attachmentManager.renderPreview(
-          this._chatAttachmentsPreview as HTMLElement
-        );
-        this._updateSendButtonState();
-      }
+      if (!target.files) return;
+
+      this._attachmentManager.addFiles([...target.files]);
+      this._attachmentManager.renderPreview(
+        this._chatAttachmentsPreview as HTMLElement
+      );
+
+      this._updateSendButtonState();
     });
 
     fileInput.click();
@@ -288,7 +288,8 @@ export default class KeeplyBot {
    */
   private _handleAttachmentRemove(event: Event): void {
     // Получаем целевой элемент события и находим ближайшую кнопку удаления
-    const target = event.target as HTMLElement;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
     const button = target.closest('.form-att-prev__remove');
     if (!button) return;
 
@@ -332,7 +333,8 @@ export default class KeeplyBot {
    * @see {@link AttachmentManager.renderPreview} - Перерисовка интерфейса
    */
   private _handleAttachmentClearAll(event: Event): void {
-    const target = event.target as HTMLElement;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
     if (!target.classList.contains('form-att-prev__clear-all')) return;
 
     this._attachmentManager.clear();
@@ -340,6 +342,44 @@ export default class KeeplyBot {
       this._chatAttachmentsPreview as HTMLElement
     );
     this._updateSendButtonState();
+  }
+
+  /**
+   * Инициализация Drag and Drop.
+   */
+  private _initDragAndDrop(): void {
+    if (!(this._appElement instanceof HTMLElement)) return;
+    this._dragDropManager = new DragAndDropManager(
+      this._appElement,
+      this._onFilesDropped
+    );
+    this._dragDropManager.attach();
+  }
+
+  /**
+   * Обработчик события перетаскивания файлов.
+   */
+  private _onFilesDropped = (files: File[]): void => {
+    if (!this._chatAttachmentsPreview) {
+      console.warn(
+        `Метод _initDragAndDrop. Элемент не найден: ${this._chatAttachmentsPreview}`
+      );
+      return;
+    }
+
+    this._attachmentManager.addFiles(files);
+    this._attachmentManager.renderPreview(this._chatAttachmentsPreview);
+    this._chatAttachmentsPreview?.classList.remove('hidden');
+    this._updateSendButtonState();
+  };
+
+  /**
+   * Инициализация загрузки файлов.
+   */
+  private _initFileDownloadHandler(): void {
+    this._chatContent?.addEventListener('click', (e) => {
+      this._fileDownloadHandler.handle(e);
+    });
   }
 
   /**
