@@ -60,6 +60,15 @@
       z-index: -1;
     }
 
+    &__clear-all {
+      font-size: font-size('xs');
+      color: color('text-secondary');
+
+      &:not(:disabled):hover {
+        color: color('accent');
+      }
+    }
+
     &__section {
       @include flex-col;
 

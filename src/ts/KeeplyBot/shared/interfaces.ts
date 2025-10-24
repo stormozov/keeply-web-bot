@@ -1,6 +1,8 @@
 // =============================================================================
-// Интерфейсы бота
+// Интерфейсы приложения Keeply
 // =============================================================================
+
+import { ICreateElementOptions } from '../../shared/interfaces';
 
 /**
  * Интерфейс для структуры UI-элементов бота, которые настраиваются сервером
@@ -43,6 +45,16 @@ export interface IUserMessageCard {
   message: string;
   files: IMessageFile[];
   timestamp: string;
+}
+
+/**
+ * Интерфейс для конфигурации типов файлов в секциях файлов внутри сообщений
+ */
+export interface IFileTypeConfig {
+  test: (mimetype: string) => boolean;
+  builder: (file: IMessageFile, fileUrl: string) => ICreateElementOptions;
+  icon: string;
+  title: string;
 }
 
 // =============================================================================
@@ -98,4 +110,37 @@ export interface IBotCapabilities {
   messaging: IMessagingCapabilities;
   search: ISearchCapabilities;
   ui: IUiCapabilities;
+}
+
+// =============================================================================
+// Интерфейсы для конфигурации вложений
+// =============================================================================
+
+/**
+ * Интерфейс для состояния вложений
+ */
+export interface IAttachmentState {
+  images: File[];
+  videos: File[];
+  audios: File[];
+}
+
+/**
+ * Интерфейс для конфигурации вложений
+ */
+export interface IAttachmentConfig {
+  types?: string[]; // например: ['image/*', 'video/mp4']
+  limit?: number; // например: 5
+}
+
+// =============================================================================
+// Интерфейсы для ленивой загрузки
+// =============================================================================
+
+/**
+ * Интерфейс конфигурационных параметров для ленивой загрузки сообщений
+ */
+export interface ILazyLoaderOptions {
+  messagePerPage?: number;
+  scrollThreshold?: number;
 }

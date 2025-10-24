@@ -1,102 +1,82 @@
-import linkifyHtml from 'linkify-html';
-import { ICreateElementOptions } from '../shared/interfaces';
+// =============================================================================
+// Модуль централизованной логики KeeplyBot
+// =============================================================================
+
 import createElement from '../utils/createElementFunction';
-import {
-  fetchCapabilities,
-  fetchMessages,
-  sendMessage,
-  SERVER_URL,
-} from './api/api';
-import {
-  IBotCapabilities,
-  IBotUiStructure,
-  ICapabilitiesElementSettings,
-  IUserMessageCard,
-} from './shared/interfaces';
+import { ChatFormController } from './controllers/ChatFormController';
+import FileDownloadHandler from './handlers/FileDownloadHandler';
+import { AttachmentManager } from './managers/AttachmentManager';
+import { CapabilitiesManager } from './managers/CapabilitiesManager';
+import { DragAndDropManager } from './managers/DragAndDropManager';
+import LazyLoader from './managers/LazyLoader';
+import MessageService from './services/MessageService';
+import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
+import { FileType } from './shared/types';
+import ChatRenderer from './ui/chat-renderer/ChatRenderer';
 
 /**
- * Класс для управления UI-элементами чат-бота Keeply на основе его возможностей (capabilities).
- * Автоматически настраивает состояние кнопок, полей ввода и других элементов интерфейса
- * в зависимости от полученных данных о поддерживаемых функциях.
+ * Основной класс для управления функциональностью чат-бота Keeply
+ *
+ * @description
+ * Объединяет все компоненты и логику работы чата:
+ * - Инициализация и обработка событий UI
+ * - Работу с сообщениями и вложениями
+ * - Ленивую загрузку старых сообщений
+ * - Обработку Drag & Drop файлов
+ * - Отображение интерфейса
  */
 export default class KeeplyBot {
-  /**
-   * Структура UI-элементов бота, настраиваемых сервером и сгруппированных по категориям:
-   * - `ui`: основные кнопки интерфейса (помощь, избранное и т.д.)
-   * - `messaging`: элементы, связанные с отправкой сообщений
-   * - `search`: элементы поиска
-   *
-   * Каждый элемент представляет собой HTMLElement или null (если не найден в DOM).
-   *
-   * @private
-   */
-  private readonly _botUi: IBotUiStructure = {
-    ui: {
-      buttonHelp: document.querySelector('.chat__btn-help'),
-      buttonFavorites: document.querySelector('.header__btn-favorites'),
-      buttonAttachments: document.querySelector('.header__btn-attachments'),
-      buttonSettings: document.querySelector('.header__btn-settings'),
-    },
-    messaging: {
-      sendText: document.querySelector('.chat__textarea'),
-      sendAttachments: document.querySelector('.chat__btn-attach'),
-    },
-    search: {
-      searchMessages: document.querySelector('.header__search-input'),
-    },
-  };
+  // UI-элементы (инициализируются из корневого элемента)
+  private _chatForm!: HTMLFormElement | null;
+  private _chatTextarea!: HTMLTextAreaElement | null;
+  private _chatSendButton!: HTMLButtonElement | null;
+  private _chatAttachButton!: HTMLButtonElement | null;
+  private _chatAttachmentsPreview!: HTMLElement | null;
+  private _chatContent!: HTMLElement | null;
+  private _chatFeedWrap!: HTMLElement | null;
+  private _emptyBlock!: HTMLElement | null;
+  private _appElement!: HTMLElement | null;
 
-  // Ссылки на UI-элементы
-  private readonly _chatForm: HTMLFormElement | null =
-    document.querySelector('.chat__form');
-  private readonly _chatTextarea: HTMLTextAreaElement | null =
-    document.querySelector('.chat__textarea');
-  private readonly _chatSendButton: HTMLButtonElement | null =
-    document.querySelector('.chat__submit');
-  private readonly _chatAttachButton: HTMLButtonElement | null =
-    document.querySelector('.chat__btn-attach');
-  private readonly _chatAttachmentsPreview: HTMLElement | null =
-    document.querySelector('.form-att-prev');
-  private readonly _chatContent = document.querySelector('.chat__content');
-  private readonly _chatFeedWrap = document.querySelector('.chat__feed-wrap');
-  private readonly _emptyBlock = document.querySelector('.chat__empty-block');
-  private readonly _skeleton = document.querySelector('.chat__skeleton');
-  private readonly _chat = document.querySelector('.chat');
-
-  // Состояние выбранных файлов по типам
-  private _selectedImages: File[] = [];
-  private _selectedVideos: File[] = [];
-  private _selectedAudios: File[] = [];
-
-  // Состояние для ленивой подгрузки сообщений
-  private _loadedMessages: IUserMessageCard[] = [];
-  private _currentOffset: number = 0;
-  private _isLoadingMore: boolean = false;
-  private _hasMoreMessages: boolean = true;
-  private readonly _scrollThreshold = 50;
+  // Параметры ленивой загрузки
   private readonly _messagePerPage = 10;
 
-  // Счётчик для Drag & Drop, чтобы избежать мерцания при входе/выходе из дочерних элементов
-  private _dragEnterCounter: number = 0;
+  // Сервисы и менеджеры
+  private _messageService: MessageService;
+  private _capabilitiesManager: CapabilitiesManager;
+  private _attachmentManager: AttachmentManager;
+  private _lazyLoader!: LazyLoader | null;
+  private _dragDropManager!: DragAndDropManager | null;
 
-  /**
-   * Настройки для функции linkifyHtml.
-   *
-   * @private
-   *
-   * @see {@link https://linkify.js.org/docs/options.html} - Документация linkifyHtml
-   */
-  private readonly _linkifyOptions = {
-    className: 'chat__message-link',
-    rel: 'noopener noreferrer',
-    target: '_blank',
-    truncate: 50,
-  };
+  // Контроллеры
+  private _formController!: ChatFormController;
+
+  // UI
+  private _renderer!: ChatRenderer;
+
+  // Обработчики
+  private _fileDownloadHandler!: FileDownloadHandler;
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
    */
-  constructor() {}
+  constructor(
+    private readonly _rootElement: HTMLElement,
+    private readonly _botUi: IBotUiStructure,
+    messageService: MessageService,
+    capabilitiesManager: CapabilitiesManager,
+    attachmentManager: AttachmentManager,
+    fileDownloadHandler: FileDownloadHandler
+  ) {
+    this._messageService = messageService;
+    this._capabilitiesManager = capabilitiesManager;
+    this._attachmentManager = attachmentManager;
+    this._fileDownloadHandler = fileDownloadHandler;
+
+    // Инициализация UI элементов
+    this._initUiElements(this._rootElement);
+
+    this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
+  }
 
   /**
    * Инициализирует KeeplyBot.
@@ -105,7 +85,21 @@ export default class KeeplyBot {
     void this.updateUiCapabilities();
     this._handleEvents();
     void this._loadMessages();
-    this._updateSendButtonState();
+  }
+
+  private _initUiElements(root: HTMLElement): void {
+    this._appElement = root;
+    if (!this._appElement) {
+      console.error(`Chat root element not found: ${root}`);
+    }
+    this._chatForm = root.querySelector('.chat__form');
+    this._chatTextarea = root.querySelector('.chat__textarea');
+    this._chatSendButton = root.querySelector('.chat__submit');
+    this._chatAttachButton = root.querySelector('.chat__btn-attach');
+    this._chatAttachmentsPreview = root.querySelector('.form-att-prev');
+    this._chatContent = root.querySelector('.chat__content');
+    this._chatFeedWrap = root.querySelector('.chat__feed-wrap');
+    this._emptyBlock = root.querySelector('.chat__empty-block');
   }
 
   /**
@@ -121,27 +115,97 @@ export default class KeeplyBot {
    * @private
    */
   private _handleEvents(): void {
-    // Обработка отправки сообщения через форму
-    if (this._chatForm) {
-      this._chatForm.addEventListener(
-        'submit',
-        this._handleChatFormSubmit.bind(this)
-      );
+    this._handleFormController();
+    this._initAttachmentHandlers();
+    this._initDragAndDrop();
+    this._initFileDownloadHandler();
+    this._updateSendButtonState();
+  }
+
+  /**
+   * Обновляет состояние UI-элементов в соответствии с возможностями бота.
+   *
+   * @returns {Promise<void>}
+   * - Промис, когда обновление состояния завершено.
+   * - Промис при преждевременном выходе из метода.
+   *
+   * @description
+   * Загружает конфигурацию с сервера и применяет ее к UI-элементам бота.
+   */
+  async updateUiCapabilities(): Promise<void> {
+    await this._capabilitiesManager.loadCapabilities();
+    this._capabilitiesManager.applyToUi(this._botUi);
+
+    const config = this._capabilitiesManager.getSendAttachmentsConfig();
+    if (!config) return;
+
+    this._attachmentManager.updateConfig({
+      types: Array.isArray(config.types) ? config.types : [],
+      limit: typeof config.limit === 'number' ? config.limit : 20,
+    });
+  }
+
+  /**
+   * Обработка отправки сообщения через форму чата.
+   */
+  private _handleFormController(): void {
+    if (!this._chatForm && !this._chatTextarea && !this._chatSendButton) return;
+    this._formController = new ChatFormController(
+      this._chatForm,
+      this._chatTextarea,
+      this._chatSendButton,
+      async (text) => this._submitMessage(text),
+      () => this._updateSendButtonState()
+    );
+    this._formController.init();
+  }
+
+  /**
+   * Обработчик события отправки сообщения через форму чата.
+   *
+   * @param {string} text - Текст сообщения.
+   * @returns {Promise<void>} Промис, который разрешается, когда отправка
+   * сообщения завершена.
+   *
+   * @description
+   * Получает данные сообщения из формы, отправляет их на сервер,
+   * и обновляет интерфейс чата.
+   */
+  private async _submitMessage(text: string): Promise<void> {
+    const { images, videos, audios } = this._attachmentManager.getState();
+    const hasFiles =
+      images.length > 0 || videos.length > 0 || audios.length > 0;
+    const allFiles = [...images, ...videos, ...audios];
+
+    if (text.trim().length > 0 || hasFiles) {
+      try {
+        const newMessage = await this._messageService.submitUserMessage(
+          text,
+          allFiles
+        );
+        this._lazyLoader?.appendNewMessages(newMessage);
+        this._lazyLoader?.reset();
+        this._renderer.scrollToBottom(this._chatFeedWrap);
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
     }
 
-    // Обработка ввода текста в поле ввода
-    if (this._chatTextarea) {
-      this._chatTextarea.addEventListener(
-        'input',
-        this._handleTextareaInput.bind(this)
-      );
-      this._chatTextarea.addEventListener(
-        'keydown',
-        this._handleTextareaKeydown.bind(this)
-      );
-    }
+    // Сброс формы
+    this._chatForm?.reset();
+    this._attachmentManager.clear();
+    this._attachmentManager.renderPreview(
+      this._chatAttachmentsPreview as HTMLElement
+    );
+    this._chatAttachmentsPreview?.classList.add('hidden');
+    this._updateSendButtonState();
+  }
 
-    // Обработка прикрепления файлов
+  /**
+   * Инициализация обработчиков событий для кнопки прикрепления файла и превью
+   * файлов
+   */
+  private _initAttachmentHandlers(): void {
     if (this._chatAttachButton) {
       this._chatAttachButton.addEventListener(
         'click',
@@ -149,206 +213,35 @@ export default class KeeplyBot {
       );
     }
 
-    // Обработка Drag & Drop для загрузки файлов
-    this._handleDragAndDrop();
-
-    // Обработка прокрутки для ленивой подгрузки
-    if (this._chatFeedWrap) {
-      this._chatFeedWrap.addEventListener(
-        'scroll',
-        this._handleLazyScroll.bind(this)
+    if (this._chatAttachmentsPreview) {
+      this._chatAttachmentsPreview.addEventListener(
+        'click',
+        this._handleAttachmentRemove.bind(this)
+      );
+      this._chatAttachmentsPreview.addEventListener(
+        'click',
+        this._handleAttachmentClearAll.bind(this)
       );
     }
-
-    // Обработка изменения состояния файлов
-    // Добавляем слушатель для обновления состояния кнопки при изменении файлов
-    this._updateSendButtonState();
-  }
-
-  /**
-   * Получает текущие возможности (capabilities) бота с сервера.
-   *
-   * @returns {Promise<IBotCapabilities>} Объект с описанием поддерживаемых
-   * функций бота, разбитый по категориям (ui, messaging, search и т.д.).
-   *
-   * @see {@link IBotCapabilities} - Интерфейс для Capabilities бота
-   */
-  async getCapabilities(): Promise<IBotCapabilities> {
-    return await fetchCapabilities();
-  }
-
-  /**
-   * Обновляет состояние UI-элементов в соответствии с возможностями бота.
-   * Для каждого элемента применяются настройки: доступность, тултипы, лимиты,
-   * допустимые типы и т.д.
-   *
-   * @returns {Promise<void>} Промис, который разрешается, когда обновление завершено.
-   */
-  async updateUiCapabilities(): Promise<void> {
-    const capabilities = await this.getCapabilities();
-
-    // Проходим по всем категориям: ui, messaging, search и т.д.
-    for (const category in this._botUi) {
-      const uiCategory = this._botUi[category];
-      const capCategory = capabilities[category as keyof IBotCapabilities];
-
-      if (!capCategory || typeof capCategory !== 'object') continue;
-
-      // Проходим по каждому элементу внутри категории
-      for (const elementKey in uiCategory) {
-        const element = uiCategory[elementKey];
-        const config = capCategory[elementKey as keyof typeof capCategory] as
-          | ICapabilitiesElementSettings
-          | undefined;
-
-        if (element && config) {
-          this._updateElementState(element, config);
-        }
-      }
-    }
-
-    // Установка атрибутов для sendAttachments
-    this._setSendAttachmentsAttributes(capabilities.messaging.sendAttachments);
-  }
-
-  /**
-   * Применяет конфигурацию к конкретному UI-элементу на основе его настроек из capabilities.
-   *
-   * Управляет:
-   * - атрибутом `disabled` (включено/выключено),
-   * - наличием тултипа (`has-tooltip` класс и `data-tooltip`),
-   * - атрибутом `data-limit` (если задан лимит),
-   * - атрибутом `data-types` (в формате JSON, если заданы допустимые типы).
-   *
-   * @param {HTMLElement} element — DOM-элемент, который нужно обновить.
-   * @param {ICapabilitiesElementSettings} config — настройки элемента из capabilities.
-   *
-   * @private
-   */
-  private _updateElementState(
-    element: HTMLElement,
-    config: ICapabilitiesElementSettings
-  ): void {
-    const isEnabled = config.availableState === 'true';
-
-    // Управление доступностью элемента
-    if (isEnabled) {
-      element.removeAttribute('disabled');
-    } else {
-      element.setAttribute('disabled', 'true');
-    }
-
-    // Управление тултипом
-    if (config.hasTooltip) {
-      element.classList.add('has-tooltip');
-      element.setAttribute('data-tooltip', config.tooltip || '');
-    } else {
-      element.classList.remove('has-tooltip');
-      element.removeAttribute('data-tooltip');
-    }
-
-    // Limit (если задан)
-    if (typeof config.limit !== 'undefined') {
-      element.setAttribute('data-limit', String(config.limit));
-    } else {
-      element.removeAttribute('data-limit');
-    }
-
-    // Types (если заданы)
-    if (Array.isArray(config.types) && config.types.length > 0) {
-      // Сохраняем как JSON — надёжнее, чем через запятую
-      // (особенно если типы содержат спецсимволы)
-      element.setAttribute('data-types', JSON.stringify(config.types));
-    } else {
-      element.removeAttribute('data-types');
-    }
-  }
-
-  /**
-   * Устанавливает атрибуты для кнопки прикрепления файлов на основе настроек sendAttachments.
-   *
-   * @param {ICapabilitiesElementSettings} config — настройки sendAttachments из capabilities.
-   *
-   * @private
-   */
-  private _setSendAttachmentsAttributes(
-    config: ICapabilitiesElementSettings
-  ): void {
-    const element = this._botUi.messaging.sendAttachments;
-    if (element) {
-      this._updateElementState(element, config);
-    }
-  }
-
-  /**
-   * Обработчик события отправки сообщения через форму чата.
-   *
-   * @description
-   * Получает данные сообщения из формы, отправляет их на сервер,
-   * и обновляет интерфейс чата.
-   *
-   * @param {Event} event - Событие отправки формы.
-   * @returns {Promise<void>} Промис, который разрешается, когда отправка сообщения завершена.
-   *
-   * @private
-   */
-  private async _handleChatFormSubmit(event: Event): Promise<void> {
-    event.preventDefault();
-    if (!this._chatForm) return;
-
-    const message = this._getUserMessageFromForm();
-    const hasText = message && message.trim().length > 0;
-    const hasFiles =
-      this._selectedImages.length > 0 ||
-      this._selectedVideos.length > 0 ||
-      this._selectedAudios.length > 0;
-    const allFiles = [
-      ...this._selectedImages,
-      ...this._selectedVideos,
-      ...this._selectedAudios,
-    ];
-
-    if (hasText || hasFiles) {
-      try {
-        const response = await sendMessage(message || '', allFiles);
-
-        // После отправки показываем последние 10 сообщений для поддержания
-        // ленивой подгрузки
-        this._loadedMessages = response.slice(-this._messagePerPage);
-        this._currentOffset = Math.max(
-          0,
-          response.length - this._messagePerPage
-        );
-        this._hasMoreMessages = response.length > this._messagePerPage;
-
-        this._renderMessages(this._loadedMessages);
-        this._scrollToBottom(); // Прокручиваем до последнего сообщения
-      } catch (error) {
-        console.error('Failed to send message:', error);
-      }
-    }
-
-    this._chatForm.reset();
-    this._selectedImages = [];
-    this._selectedVideos = [];
-    this._selectedAudios = [];
-    this._renderAttachmentsPreview();
-    this._chatAttachmentsPreview?.classList.add('hidden');
-    this._updateSendButtonState();
   }
 
   /**
    * Обработчик события клика по кнопке прикрепления файла.
    *
    * @description
-   * Создает скрытый input для выбора файлов, настраивает его и вызывает диалог выбора.
+   * Создает скрытый input для выбора файлов, настраивает его и вызывает диалог
+   * выбора.
    *
    * @private
    */
   private _handleAttachButtonClick(): void {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.multiple = true;
+    const fileInput = createElement({
+      tag: 'input',
+      attrs: {
+        type: 'file',
+        multiple: 'true',
+      },
+    }) as HTMLInputElement;
 
     // Получаем настройки из capabilities
     const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
@@ -360,347 +253,133 @@ export default class KeeplyBot {
       }
 
       const limit = sendAttachmentsConfig.getAttribute('data-limit');
-      if (limit) {
-        fileInput.setAttribute('data-limit', limit);
-      }
+      if (limit) fileInput.setAttribute('data-limit', limit);
     }
 
     fileInput.addEventListener('change', (event) => {
       const target = event.target as HTMLInputElement;
-      if (target.files) {
-        const files = Array.from(target.files);
-        this._addFilesToCategories(files);
-        this._renderAttachmentsPreview();
-        this._updateSendButtonState();
-      }
+      if (!target.files) return;
+
+      this._attachmentManager.addFiles([...target.files]);
+      this._attachmentManager.renderPreview(
+        this._chatAttachmentsPreview as HTMLElement
+      );
+
+      this._updateSendButtonState();
     });
 
     fileInput.click();
   }
 
   /**
-   * Обработчик функционала Drag & Drop для загрузки файлов.
+   * Обработчик удаления вложенного файла из чата
+   *
+   * @param {Event} event - Событие клика на кнопку удаления
    *
    * @description
-   * Добавляет обработчики событий dragover, dragenter, dragleave и drop.
+   * 1. Находит ближайшую кнопку с классом .form-att-prev__remove
+   * 2. Получает тип файла и индекс из атрибутов data-type и data-index
+   * 3. Удаляет файл из менеджера вложений
+   * 4. Перерисовывает превью оставшихся файлов
+   * 5. Обновляет состояние кнопки отправки
    *
-   * @private
+   * @see _attachmentManager - Менеджер работы с вложениями
+   * @see _updateSendButtonState - Метод обновления состояния кнопки отправки
    */
-  private _handleDragAndDrop(): void {
-    const dragDropTarget = this._chat || document;
+  private _handleAttachmentRemove(event: Event): void {
+    // Получаем целевой элемент события и находим ближайшую кнопку удаления
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('.form-att-prev__remove');
+    if (!button) return;
 
-    dragDropTarget.addEventListener('dragover', (event) => {
-      this._handleDragOver(event as DragEvent);
-    });
-    dragDropTarget.addEventListener('dragenter', (event) => {
-      this._handleDragEnter(event as DragEvent);
-    });
-    dragDropTarget.addEventListener('dragleave', (event) => {
-      this._handleDragLeave(event as DragEvent);
-    });
-    dragDropTarget.addEventListener('drop', (event) => {
-      this._handleDrop(event as DragEvent);
-    });
-  }
+    // Извлекаем тип файла и индекс из атрибутов кнопки
+    const type = button.getAttribute('data-type') as FileType;
+    const index = parseInt(button.getAttribute('data-index') || '', 10);
 
-  /**
-   * Обработчик события dragover для чата или документа.
-   *
-   * @description
-   * Предотвращает стандартное поведение браузера и добавляет визуальную индикацию.
-   *
-   * @param {DragEvent} event - Событие dragover.
-   *
-   * @private
-   */
-  private _handleDragOver(event: DragEvent): void {
-    event.preventDefault();
-    if (this._chat) this._chat.classList.add('drag-over');
-  }
+    // Проверяем корректность индекса
+    if (isNaN(index)) return;
 
-  /**
-   * Обработчик события dragenter для чата или документа.
-   *
-   * @description
-   * Добавляет визуальную индикацию при входе перетаскиваемого объекта.
-   * Использует счётчик для предотвращения мерцания при входе/выходе из дочерних элементов.
-   *
-   * @param {DragEvent} event - Событие dragenter.
-   *
-   * @private
-   */
-  private _handleDragEnter(event: DragEvent): void {
-    event.preventDefault();
+    // Удаляем файл из менеджера вложений
+    this._attachmentManager.removeFile(type, index);
 
-    this._dragEnterCounter++;
-    if (this._chat && this._dragEnterCounter === 1) {
-      this._chat.classList.add('drag-over');
-    }
-  }
+    // Перерисовываем превью с учетом изменений
+    this._attachmentManager.renderPreview(
+      this._chatAttachmentsPreview as HTMLElement
+    );
 
-  /**
-   * Обработчик события dragleave для чата или документа.
-   *
-   * @description
-   * Убирает визуальную индикацию при выходе перетаскиваемого объекта.
-   * Использует счётчик для предотвращения мерцания при входе/выходе из дочерних элементов.
-   *
-   * @param {DragEvent} event - Событие dragleave.
-   *
-   * @private
-   */
-  private _handleDragLeave(event: DragEvent): void {
-    event.preventDefault();
-
-    this._dragEnterCounter--;
-    if (this._chat && this._dragEnterCounter === 0) {
-      this._chat.classList.remove('drag-over');
-    }
-  }
-
-  /**
-   * Обработчик события drop для чата или документа.
-   *
-   * @description
-   * Обрабатывает сброс файлов на чат или документ, добавляет их к выбранным файлам,
-   * обновляет превью и состояние кнопки отправки.
-   *
-   * @param {DragEvent} event - Событие drop.
-   *
-   * @private
-   */
-  private _handleDrop(event: DragEvent): void {
-    event.preventDefault();
-
-    // Сбрасываем счётчик и убираем класс при drop
-    this._dragEnterCounter = 0;
-    if (this._chat) this._chat.classList.remove('drag-over');
-
-    if (event.dataTransfer?.files) {
-      const files = [...event.dataTransfer.files];
-
-      // Получаем настройки из capabilities
-      const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
-      // let limit = 1;
-      // if (sendAttachmentsConfig) {
-      //   const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
-      //   if (limitAttr) limit = parseInt(limitAttr, 10);
-      // }
-
-      // Фильтруем файлы по типам, если заданы
-      let filteredFiles = files;
-      if (sendAttachmentsConfig) {
-        const types = sendAttachmentsConfig.getAttribute('data-types');
-        if (types) {
-          const allowedTypes = JSON.parse(types) as string[];
-          filteredFiles = files.filter((file) =>
-            allowedTypes.some((type) => file.type.match(type))
-          );
-        }
-      }
-
-      // Добавляем файлы к выбранным, соблюдая лимит
-      this._addFilesToCategories(filteredFiles);
-
-      this._renderAttachmentsPreview();
-      this._updateSendButtonState();
-    }
-  }
-
-  /**
-   * Добавляет файлы в соответствующие категории на основе их типа.
-   *
-   * @param {File[]} files - Массив файлов для добавления.
-   * @private
-   */
-  private _addFilesToCategories(files: File[]): void {
-    const sendAttachmentsConfig = this._botUi.messaging.sendAttachments;
-    let limit = 1;
-    if (sendAttachmentsConfig) {
-      const limitAttr = sendAttachmentsConfig.getAttribute('data-limit');
-      if (limitAttr) limit = parseInt(limitAttr, 10);
-    }
-
-    files.forEach((file) => {
-      const totalCurrentFiles =
-        this._selectedImages.length +
-        this._selectedVideos.length +
-        this._selectedAudios.length;
-
-      if (totalCurrentFiles >= limit) return;
-
-      if (file.type.startsWith('image/')) {
-        this._selectedImages.push(file);
-      } else if (file.type.startsWith('video/')) {
-        this._selectedVideos.push(file);
-      } else if (file.type.startsWith('audio/')) {
-        this._selectedAudios.push(file);
-      }
-    });
-  }
-
-  /**
-   * Отображает превью выбранных файлов в форме, разделенных по типам.
-   *
-   * @private
-   */
-  private _renderAttachmentsPreview(): void {
-    if (!this._chatAttachmentsPreview) return;
-
-    this._chatAttachmentsPreview.innerHTML = '';
-
-    const totalFiles =
-      this._selectedImages.length +
-      this._selectedVideos.length +
-      this._selectedAudios.length;
-
-    if (totalFiles === 0) {
-      this._chatAttachmentsPreview.classList.add('hidden');
-      return;
-    }
-
-    this._chatAttachmentsPreview.classList.remove('hidden');
-
-    // Функция для создания превью секции
-    const createSection = (files: File[], type: string, icon: string): void => {
-      if (files.length === 0) return;
-
-      const section = createElement({
-        tag: 'div',
-        className: [
-          'form-att-prev__section',
-          `form-att-prev__section--${type}`,
-        ],
-        children: [
-          {
-            tag: 'h5',
-            className: 'form-att-prev__section-title',
-            children: [
-              {
-                tag: 'span',
-                className: 'material-symbols-outlined',
-                text: icon,
-              },
-              {
-                tag: 'span',
-                text:
-                  type === 'images'
-                    ? 'Изображения'
-                    : type === 'videos'
-                      ? 'Видео'
-                      : 'Аудио',
-              },
-            ],
-          },
-          {
-            tag: 'ul',
-            className: 'form-att-prev__list',
-            children: files.map((file) => ({
-              tag: 'li',
-              className: 'form-att-prev__item',
-              children: [
-                {
-                  tag: 'div',
-                  className: 'form-att-prev__image-wrapper',
-                  children: [
-                    type === 'images'
-                      ? {
-                          tag: 'img',
-                          className: 'form-att-prev__image',
-                          attrs: {
-                            src: URL.createObjectURL(file),
-                            alt: file.name,
-                          },
-                        }
-                      : {
-                          tag: 'div',
-                          className: 'form-att-prev__file-icon',
-                          children: [
-                            {
-                              tag: 'span',
-                              className: 'material-symbols-outlined',
-                              text:
-                                type === 'videos' ? 'videocam' : 'audiotrack',
-                            },
-                          ],
-                        },
-                    {
-                      tag: 'button',
-                      className: 'form-att-prev__remove',
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'close',
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  tag: 'span',
-                  className: ['form-att-prev__name', 'has-tooltip'],
-                  text: file.name,
-                  attrs: {
-                    'data-tooltip': file.name,
-                  },
-                },
-              ],
-            })),
-          },
-        ],
-        parent: this._chatAttachmentsPreview as HTMLElement,
-      });
-
-      // Обработчики удаления файлов
-      const removeButtons = section.querySelectorAll('.form-att-prev__remove');
-      removeButtons.forEach((button, index) => {
-        button.addEventListener('click', () => {
-          if (type === 'images') {
-            this._selectedImages.splice(index, 1);
-          } else if (type === 'videos') {
-            this._selectedVideos.splice(index, 1);
-          } else if (type === 'audios') {
-            this._selectedAudios.splice(index, 1);
-          }
-          this._renderAttachmentsPreview();
-          this._updateSendButtonState();
-        });
-      });
-    };
-
-    createSection(this._selectedImages, 'images', 'image');
-    createSection(this._selectedVideos, 'videos', 'videocam');
-    createSection(this._selectedAudios, 'audios', 'audiotrack');
-  }
-
-  /**
-   * Обработчик события ввода текста в текстовое поле чата.
-   *
-   * @private
-   */
-  private _handleTextareaInput(): void {
+    // Обновляем состояние кнопки отправки
     this._updateSendButtonState();
   }
 
   /**
-   * Обработчик события нажатия клавиши в текстовом поле чата.
+   * Обработчик события полной очистки всех вложений
+   *
+   * @param {Event} event - Событие клика
    *
    * @description
-   * Если нажата клавиша Enter и не нажата одновременно клавиша Shift,
-   * то отправляет сообщение.
+   * 1. Проверяет, что событие произошло на элементе с нужным классом
+   * 2. Выполняет полную очистку всех загруженных файлов
+   * 3. Перерисовывает интерфейс предварительного просмотра
+   * 4. Обновляет состояние кнопки отправки
    *
-   * @param {KeyboardEvent} event - Событие нажатия клавиши.
+   * @example
+   * // Пример работы:
+   * // 1. Пользователь нажимает кнопку "Очистить всё"
+   * // 2. Все файлы удаляются из менеджера
+   * // 3. Интерфейс обновляется и закрывает блок предварительного просмотра
    *
-   * @private
+   * @see {@link AttachmentManager.clear} - Метод полной очистки файлов
+   * @see {@link AttachmentManager.renderPreview} - Перерисовка интерфейса
    */
-  private _handleTextareaKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      if (this._chatForm && !this._chatSendButton?.disabled) {
-        this._chatForm.requestSubmit();
-      }
+  private _handleAttachmentClearAll(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (!target.classList.contains('form-att-prev__clear-all')) return;
+
+    this._attachmentManager.clear();
+    this._attachmentManager.renderPreview(
+      this._chatAttachmentsPreview as HTMLElement
+    );
+    this._updateSendButtonState();
+  }
+
+  /**
+   * Инициализация Drag and Drop.
+   */
+  private _initDragAndDrop(): void {
+    if (!(this._appElement instanceof HTMLElement)) return;
+    this._dragDropManager = new DragAndDropManager(
+      this._appElement,
+      this._onFilesDropped
+    );
+    this._dragDropManager.attach();
+  }
+
+  /**
+   * Обработчик события перетаскивания файлов.
+   */
+  private _onFilesDropped = (files: File[]): void => {
+    if (!this._chatAttachmentsPreview) {
+      console.warn(
+        `Метод _initDragAndDrop. Элемент не найден: ${this._chatAttachmentsPreview}`
+      );
+      return;
     }
+
+    this._attachmentManager.addFiles(files);
+    this._attachmentManager.renderPreview(this._chatAttachmentsPreview);
+    this._chatAttachmentsPreview?.classList.remove('hidden');
+    this._updateSendButtonState();
+  };
+
+  /**
+   * Инициализация загрузки файлов.
+   */
+  private _initFileDownloadHandler(): void {
+    this._chatContent?.addEventListener('click', (e) => {
+      this._fileDownloadHandler.handle(e);
+    });
   }
 
   /**
@@ -720,553 +399,58 @@ export default class KeeplyBot {
 
     const message = this._chatTextarea.value.trim();
     const hasText = message.length > 0;
+    const { images, videos, audios } = this._attachmentManager.getState();
     const hasFiles =
-      this._selectedImages.length > 0 ||
-      this._selectedVideos.length > 0 ||
-      this._selectedAudios.length > 0;
+      images.length > 0 || videos.length > 0 || audios.length > 0;
 
     this._chatSendButton.disabled = !hasText && !hasFiles;
   }
 
   /**
-   * Получает текст сообщения из формы.
-   *
-   * @returns {string | undefined}
-   * - Текст сообщения
-   * - Если форма не определена, возвращает `undefined`
-   */
-  private _getUserMessageFromForm(): string | undefined {
-    if (!this._chatForm) return;
-
-    const formData = new FormData(this._chatForm);
-    return formData.get('chat-textarea') as string;
-  }
-
-  /**
-   * Загружает сообщения с сервера и отображает их.
+   * Загружает начальные сообщения и инициализирует ленивую загрузку
    *
    * @description
-   * 1. Показывает скелетон загрузки.
-   * 2. Загружает последние 10 сообщений с сервера.
-   * 3. Отображает сообщения в UI чата.
-   * 4. Скрывает скелетон загрузки.
-   * 5. Прокручивает чат до последнего сообщения.
+   * 2. Загружает начальную порцию сообщений
+   * 3. Инициализирует LazyLoader для подгрузки старых сообщений при прокрутке
+   * 4. Обновляет интерфейс и позиционирует скролл
    *
-   * @returns {Promise<void>} Промис, который разрешается, когда загрузка сообщений завершена.
-   *
-   * @private
+   * @see {@link LazyLoader} - Механизм ленивой загрузки
+   * @see {@link MessageService.loadInitialMessages} - Метод загрузки начальных
+   * сообщений из MessageService
    */
   private async _loadMessages(): Promise<void> {
-    this._showSkeleton();
     try {
-      const messages = await fetchMessages(0, this._messagePerPage);
+      // Инициализируем LazyLoader ДО загрузки сообщений
+      this._initLazyLoader();
 
-      // Обновляем массив сообщений
-      this._loadedMessages = messages;
-      this._currentOffset = 10;
+      if (!this._lazyLoader) throw Error(`LazyLoader не инициализирован`);
 
-      this._renderMessages(this._loadedMessages);
-      this._scrollToBottom(); // Прокручиваем до последнего сообщения
+      // Загружаем начальные сообщения через LazyLoader
+      await this._lazyLoader.loadInitial();
+
+      this._renderer.render(this._lazyLoader.getMessages());
+      this._renderer.scrollToBottom(this._chatFeedWrap);
     } catch (error) {
       console.error('Failed to load messages:', error);
-      this._renderMessages([]);
-    } finally {
-      this._hideSkeleton();
+      this._renderer.render([]);
     }
   }
 
   /**
-   * Показывает скелетон загрузки.
-   *
-   * @private
+   * Инициализирует LazyLoader для подгрузки старых сообщений при прокрутке.
    */
-  private _showSkeleton(): void {
-    if (!this._chatContent || !this._skeleton) return;
-    this._skeleton.classList.remove('hidden');
-  }
+  private _initLazyLoader(): void {
+    if (!(this._chatFeedWrap instanceof HTMLElement)) return;
+    if (this._lazyLoader) this._lazyLoader.dispose();
 
-  /**
-   * Прокручивает чат до самого последнего сообщения.
-   *
-   * @private
-   */
-  private _scrollToBottom(): void {
-    if (!this._chatFeedWrap) return;
-    this._chatFeedWrap.scrollTop = this._chatFeedWrap.scrollHeight;
-  }
+    // Создаём новый LazyLoader
+    this._lazyLoader = new LazyLoader(
+      this._chatFeedWrap,
+      this._messageService,
+      (allMessages: IUserMessageCard[]) => this._renderer.render(allMessages),
+      { messagePerPage: this._messagePerPage }
+    );
 
-  /**
-   * Скрывает скелетон загрузки.
-   *
-   * @private
-   */
-  private _hideSkeleton(): void {
-    if (!this._skeleton) return;
-    this._skeleton.classList.add('hidden');
-  }
-
-  /**
-   * Обработчик события прокрутки чата для ленивой подгрузки сообщений.
-   *
-   * @description
-   * При прокрутке вверх до верхней границы загружает следующие 10 сообщений.
-   *
-   * @param {Event} event - Событие прокрутки.
-   *
-   * @private
-   */
-  private async _handleLazyScroll(event: Event): Promise<void> {
-    if (
-      this._isLoadingMore ||
-      !this._chatFeedWrap ||
-      !this._hasMoreMessages ||
-      !(event.target instanceof HTMLElement)
-    ) {
-      return;
-    }
-
-    const target = event.target;
-    const scrollTop = target.scrollTop;
-
-    // Если прокрутили вверх до верхней границы (с небольшим отступом)
-    if (scrollTop > this._scrollThreshold) return;
-
-    this._isLoadingMore = true;
-
-    try {
-      const newMessages = await fetchMessages(
-        this._currentOffset,
-        this._messagePerPage
-      );
-
-      if (newMessages.length === 0) {
-        this._hasMoreMessages = false;
-        return;
-      }
-
-      // Сохраняем текущую высоту скролла перед добавлением новых сообщений
-      const oldScrollHeight = target.scrollHeight;
-
-      // Добавляем новые сообщения в начало массива
-      this._loadedMessages = [...newMessages, ...this._loadedMessages];
-      this._currentOffset += this._messagePerPage;
-      this._renderMessages(this._loadedMessages);
-
-      // Восстанавливаем позицию прокрутки после добавления новых сообщений
-      this._restoreScrollPosition(target, oldScrollHeight, scrollTop);
-    } catch (error) {
-      console.error('Failed to load more messages:', error);
-    } finally {
-      this._isLoadingMore = false;
-    }
-  }
-
-  private _restoreScrollPosition(
-    target: HTMLElement,
-    oldScrollHeight: number,
-    scrollTop: number
-  ): void {
-    const newScrollHeight = target.scrollHeight;
-    target.scrollTop = newScrollHeight - oldScrollHeight + scrollTop;
-  }
-
-  /**
-   * Обработчик клика по кнопке скачивания файла.
-   *
-   * @param {Event} event - Событие клика.
-   *
-   * @private
-   */
-  private async _handleDownloadClick(event: Event): Promise<void> {
-    event.preventDefault();
-
-    // Проверяем, что клик был совершен по кнопке скачивания
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest(
-      '.chat__message-file-download'
-    ) as HTMLElement;
-    if (!button) return;
-
-    // Получаем URL и имя файла из атрибутов кнопки
-    const url = button.getAttribute('data-url');
-    const filename = button.getAttribute('data-filename') || 'file';
-
-    if (!url) return;
-
-    try {
-      // Используем fetch для скачивания файла
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      link.style.display = 'none';
-
-      document.body.append(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error('Failed to download file:', error);
-    }
-  }
-
-  /**
-   * Отображает массив сообщений в UI чата.
-   *
-   * @param {IUserMessageCard[]} messages — массив сообщений с сервера.
-   *
-   * @private
-   *
-   * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
-   * @see {@link createElement} - Функция для создания DOM-элементов
-   * @see {@link https://linkify.js.org/} - Библиотека для автоматической обработки ссылок
-   */
-  private _renderMessages(messages: IUserMessageCard[]): void {
-    if (!(this._chatContent instanceof HTMLElement) || !this._chatContent) {
-      return;
-    }
-
-    // Очищаем содержимое чата
-    this._chatContent.replaceChildren();
-
-    if (messages.length === 0) {
-      // Если сообщений нет, показываем пустой блок
-      if (this._emptyBlock) this._chatContent.append(this._emptyBlock);
-      return;
-    }
-
-    // Скрываем пустой блок, если он есть
-    if (this._emptyBlock && this._emptyBlock instanceof HTMLElement) {
-      this._emptyBlock.style.display = 'none';
-    }
-
-    const fragment = document.createDocumentFragment();
-
-    for (const msg of messages) {
-      const bodyChildren: ICreateElementOptions[] = [];
-
-      // Добавляем текст сообщения только если он присутствует
-      if (msg.message?.trim()) {
-        bodyChildren.push({
-          tag: 'p',
-          className: 'chat__message-text',
-          html: linkifyHtml(msg.message, this._linkifyOptions),
-        });
-      }
-
-      // Обработка файлов
-      if (msg.files?.length) {
-        const imageItems: ICreateElementOptions[] = [];
-        const videoItems: ICreateElementOptions[] = [];
-        const audioItems: ICreateElementOptions[] = [];
-
-        for (const file of msg.files) {
-          const fileUrl = `${SERVER_URL}${file.url}`;
-
-          if (file.mimetype.startsWith('image/')) {
-            imageItems.push({
-              tag: 'li',
-              className: ['chat__message-file', 'chat__message-file--image'],
-              children: [
-                {
-                  tag: 'img',
-                  className: ['chat__message-file-img', 'has-tooltip'],
-                  attrs: {
-                    src: fileUrl,
-                    alt: file.originalname,
-                    'data-tooltip': file.originalname,
-                  },
-                },
-                {
-                  tag: 'div',
-                  className: 'chat__message-file-info',
-                  children: [
-                    {
-                      tag: 'p',
-                      className: ['chat__message-file-size', 'has-tooltip'],
-                      text: String(file.size),
-                      attrs: {
-                        'data-tooltip': 'Размер аудиофайла',
-                      },
-                    },
-                    {
-                      tag: 'button',
-                      className: ['link-btn', 'chat__message-file-download'],
-                      attrs: {
-                        'data-url': fileUrl,
-                        'data-filename': file.originalname,
-                      },
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'download',
-                        },
-                        {
-                          tag: 'span',
-                          className: 'link-btn__text',
-                          text: 'Скачать',
-                        },
-                      ],
-                      events: {
-                        click: this._handleDownloadClick.bind(this),
-                      },
-                    },
-                  ],
-                },
-              ],
-            });
-          } else if (file.mimetype.startsWith('video/')) {
-            videoItems.push({
-              tag: 'li',
-              className: ['chat__message-file', 'chat__message-file--video'],
-              children: [
-                {
-                  tag: 'video',
-                  className: 'chat__message-video',
-                  attrs: { src: fileUrl, controls: 'true' },
-                },
-                {
-                  tag: 'div',
-                  className: 'chat__message-file-info',
-                  children: [
-                    {
-                      tag: 'span',
-                      className: ['chat__message-file-size', 'has-tooltip'],
-                      text: String(file.size),
-                      attrs: {
-                        'data-tooltip': 'Размер видеофайла',
-                      },
-                    },
-                    {
-                      tag: 'button',
-                      className: ['link-btn', 'chat__message-file-download'],
-                      attrs: {
-                        'data-url': fileUrl,
-                        'data-filename': file.originalname,
-                      },
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'download',
-                        },
-                        {
-                          tag: 'span',
-                          className: 'link-btn__text',
-                          text: 'Скачать',
-                        },
-                      ],
-                      events: {
-                        click: this._handleDownloadClick.bind(this),
-                      },
-                    },
-                  ],
-                },
-              ],
-            });
-          } else if (file.mimetype.startsWith('audio/')) {
-            audioItems.push({
-              tag: 'li',
-              className: ['chat__message-file', 'chat__message-file--audio'],
-              children: [
-                {
-                  tag: 'div',
-                  className: 'chat__message-file-info',
-                  children: [
-                    {
-                      tag: 'p',
-                      className: ['chat__message-file-name', 'has-tooltip'],
-                      text: file.filename,
-                      attrs: {
-                        'data-tooltip': 'Название аудиофайла',
-                      },
-                    },
-                    {
-                      tag: 'p',
-                      className: ['chat__message-file-size', 'has-tooltip'],
-                      text: String(file.size),
-                      attrs: {
-                        'data-tooltip': 'Размер аудиофайла',
-                      },
-                    },
-                    {
-                      tag: 'button',
-                      className: ['link-btn', 'chat__message-file-download'],
-                      attrs: {
-                        'data-url': fileUrl,
-                        'data-filename': file.originalname,
-                      },
-                      children: [
-                        {
-                          tag: 'span',
-                          className: 'material-symbols-outlined',
-                          text: 'download',
-                        },
-                        {
-                          tag: 'span',
-                          className: 'link-btn__text',
-                          text: 'Скачать',
-                        },
-                      ],
-                      events: {
-                        click: this._handleDownloadClick.bind(this),
-                      },
-                    },
-                  ],
-                },
-                {
-                  tag: 'audio',
-                  className: 'chat__message-audio',
-                  attrs: { src: fileUrl, controls: 'true' },
-                },
-              ],
-            });
-          }
-          // Другие типы файлов (например, PDF, DOC) можно добавить здесь
-        }
-
-        // Создаем контейнер для всех секций файлов
-        const filesSections: ICreateElementOptions[] = [];
-
-        if (imageItems.length > 0) {
-          filesSections.push({
-            tag: 'div',
-            className: 'chat__message-files-section',
-            children: [
-              {
-                tag: 'h5',
-                className: 'chat__message-files-title',
-                children: [
-                  {
-                    tag: 'span',
-                    className: 'material-symbols-outlined',
-                    text: 'image',
-                  },
-                  {
-                    tag: 'span',
-                    text: 'Изображения',
-                  },
-                ],
-              },
-              {
-                tag: 'ul',
-                className: [
-                  'chat__message-files',
-                  'chat__message-files--images',
-                ],
-                children: imageItems,
-              },
-            ],
-          });
-        }
-        if (videoItems.length > 0) {
-          filesSections.push({
-            tag: 'div',
-            className: 'chat__message-files-section',
-            children: [
-              {
-                tag: 'h5',
-                className: 'chat__message-files-title',
-                children: [
-                  {
-                    tag: 'span',
-                    className: 'material-symbols-outlined',
-                    text: 'videocam',
-                  },
-                  {
-                    tag: 'span',
-                    text: 'Видео',
-                  },
-                ],
-              },
-              {
-                tag: 'ul',
-                className: [
-                  'chat__message-files',
-                  'chat__message-files--videos',
-                ],
-                children: videoItems,
-              },
-            ],
-          });
-        }
-        if (audioItems.length > 0) {
-          filesSections.push({
-            tag: 'div',
-            className: 'chat__message-files-section',
-            children: [
-              {
-                tag: 'h5',
-                className: 'chat__message-files-title',
-                children: [
-                  {
-                    tag: 'span',
-                    className: 'material-symbols-outlined',
-                    text: 'audiotrack',
-                  },
-                  {
-                    tag: 'span',
-                    text: 'Аудио',
-                  },
-                ],
-              },
-              {
-                tag: 'ul',
-                className: [
-                  'chat__message-files',
-                  'chat__message-files--audios',
-                ],
-                children: audioItems,
-              },
-            ],
-          });
-        }
-
-        // Добавляем общий контейнер для всех секций файлов
-        if (filesSections.length > 0) {
-          bodyChildren.push({
-            tag: 'div',
-            className: 'chat__message-files-container',
-            children: filesSections,
-          });
-        }
-      }
-
-      // Всегда добавляем временную метку
-      bodyChildren.push({
-        tag: 'time',
-        className: 'chat__message-timestamp',
-        text: new Date(msg.timestamp).toLocaleString(),
-        attrs: { datetime: msg.timestamp },
-      });
-
-      // Создаём элемент сообщения
-      const messageItem = createElement({
-        tag: 'li',
-        className: 'chat__message-item',
-        id: msg.id,
-        children: [
-          {
-            tag: 'div',
-            className: 'chat__message-body',
-            children: bodyChildren,
-          },
-        ],
-      });
-
-      fragment.append(messageItem);
-    }
-
-    // Оборачиваем все сообщения в список
-    const messagesList = createElement({
-      tag: 'ul',
-      className: 'chat__messages-list',
-    });
-    messagesList.append(fragment);
-    this._chatContent.append(messagesList);
+    this._lazyLoader.attachScrollListener();
   }
 }
