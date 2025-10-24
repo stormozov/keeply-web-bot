@@ -1,4 +1,5 @@
 import { ChatFormController } from './controllers/ChatFormController';
+import FileDownloadHandler from './handlers/FileDownloadHandler';
 import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
 import { DragAndDropManager } from './managers/DragAndDropManager';
@@ -78,6 +79,9 @@ export default class KeeplyBot {
   // UI
   private _renderer!: ChatRenderer;
 
+  // Обработчики
+  private _fileDownloadHandler!: FileDownloadHandler;
+
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
    */
@@ -87,6 +91,7 @@ export default class KeeplyBot {
     this._capabilitiesManager = new CapabilitiesManager(messageService);
     this._attachmentManager = new AttachmentManager();
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
+    this._fileDownloadHandler = new FileDownloadHandler();
   }
 
   /**
@@ -167,10 +172,9 @@ export default class KeeplyBot {
 
     // Обработка клика кнопку "Скачать" у файла в сообщении
     if (this._chatContent) {
-      this._chatContent.addEventListener(
-        'click',
-        this._handleDownloadClick.bind(this)
-      );
+      this._chatContent.addEventListener('click', (e) => {
+        this._fileDownloadHandler.handle(e);
+      });
     }
   }
 
@@ -421,48 +425,5 @@ export default class KeeplyBot {
     );
 
     this._lazyLoader.attachScrollListener();
-  }
-
-  /**
-   * Обработчик клика по кнопке скачивания файла.
-   *
-   * @param {Event} event - Событие клика.
-   *
-   * @private
-   */
-  private async _handleDownloadClick(event: Event): Promise<void> {
-    event.preventDefault();
-
-    // Проверяем, что клик был совершен по кнопке скачивания
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest(
-      '.chat__message-file-download'
-    ) as HTMLElement;
-    if (!button) return;
-
-    // Получаем URL и имя файла из атрибутов кнопки
-    const url = button.getAttribute('data-url');
-    const filename = button.getAttribute('data-filename') || 'file';
-
-    if (!url) return;
-
-    try {
-      // Используем fetch для скачивания файла
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      link.style.display = 'none';
-
-      document.body.append(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error('Failed to download file:', error);
-    }
   }
 }
