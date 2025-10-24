@@ -1,4 +1,8 @@
-import KeeplyBot from './KeeplyBot/KeeplyBot';
+// =============================================================================
+// Модуль инициализации приложения
+// =============================================================================
+
+import { createKeeplyBot } from './KeeplyBot/factories/KeeplyBotFactory';
 import TooltipManager from './utils/TooltipManager';
 
 /**
@@ -15,7 +19,13 @@ const tooltipInit = (): TooltipManager => {
  * Инициализация приложения KeeplyBot
  */
 const botInit = (): void => {
-  const bot = new KeeplyBot();
+  const chatRoot = document.querySelector('#App') as HTMLElement | null;
+  if (!chatRoot) {
+    console.error('Chat root element not found');
+    return;
+  }
+
+  const bot = createKeeplyBot(chatRoot);
   bot.init();
 };
 

@@ -1,3 +1,7 @@
+// =============================================================================
+// Модуль централизованной логики KeeplyBot
+// =============================================================================
+
 import { ChatFormController } from './controllers/ChatFormController';
 import FileDownloadHandler from './handlers/FileDownloadHandler';
 import { AttachmentManager } from './managers/AttachmentManager';
@@ -15,53 +19,16 @@ import ChatRenderer from './ui/chat-renderer/ChatRenderer';
  * в зависимости от полученных данных о поддерживаемых функциях.
  */
 export default class KeeplyBot {
-  /**
-   * Структура UI-элементов бота, настраиваемых сервером и сгруппированных по категориям:
-   * - `ui`: основные кнопки интерфейса (помощь, избранное и т.д.)
-   * - `messaging`: элементы, связанные с отправкой сообщений
-   * - `search`: элементы поиска
-   *
-   * Каждый элемент представляет собой HTMLElement или null (если не найден в DOM).
-   *
-   * @private
-   */
-  private readonly _botUi: IBotUiStructure = {
-    ui: {
-      buttonHelp: document.querySelector('.chat__btn-help'),
-      buttonFavorites: document.querySelector('.header__btn-favorites'),
-      buttonAttachments: document.querySelector('.header__btn-attachments'),
-      buttonSettings: document.querySelector('.header__btn-settings'),
-    },
-    messaging: {
-      sendText: document.querySelector('.chat__textarea'),
-      sendAttachments: document.querySelector('.chat__btn-attach'),
-    },
-    search: {
-      searchMessages: document.querySelector('.header__search-input'),
-    },
-  };
-
-  // Ссылки на UI-элементы
-  private readonly _chatForm: HTMLFormElement | null =
-    document.querySelector('.chat__form');
-  private readonly _chatTextarea: HTMLTextAreaElement | null =
-    document.querySelector('.chat__textarea');
-  private readonly _chatSendButton: HTMLButtonElement | null =
-    document.querySelector('.chat__submit');
-  private readonly _chatAttachButton: HTMLButtonElement | null =
-    document.querySelector('.chat__btn-attach');
-  private readonly _chatAttachmentsPreview: HTMLElement | null =
-    document.querySelector('.form-att-prev');
-  private readonly _chatFeedWrap: HTMLElement | null = document.querySelector(
-    '.chat__feed-wrap'
-  ) as HTMLElement | null;
-  private readonly _chatContent: HTMLElement | null = document.querySelector(
-    '.chat__content'
-  ) as HTMLElement | null;
-  private readonly _emptyBlock: HTMLElement | null = document.querySelector(
-    '.chat__empty-block'
-  ) as HTMLElement | null;
-  private readonly _chat = document.querySelector('.chat');
+  // UI-элементы (инициализируются из корневого элемента)
+  private _chatForm!: HTMLFormElement | null;
+  private _chatTextarea!: HTMLTextAreaElement | null;
+  private _chatSendButton!: HTMLButtonElement | null;
+  private _chatAttachButton!: HTMLButtonElement | null;
+  private _chatAttachmentsPreview!: HTMLElement | null;
+  private _chatContent!: HTMLElement | null;
+  private _chatFeedWrap!: HTMLElement | null;
+  private _emptyBlock!: HTMLElement | null;
+  private _chat!: HTMLElement | null;
 
   // Параметры ленивой загрузки
   private readonly _messagePerPage = 10;
@@ -85,13 +52,33 @@ export default class KeeplyBot {
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
    */
-  constructor() {
-    const messageService = new MessageService();
+  constructor(
+    private readonly _rootElement: HTMLElement,
+    private readonly _botUi: IBotUiStructure,
+    messageService: MessageService,
+    capabilitiesManager: CapabilitiesManager,
+    attachmentManager: AttachmentManager,
+    fileDownloadHandler: FileDownloadHandler
+  ) {
     this._messageService = messageService;
-    this._capabilitiesManager = new CapabilitiesManager(messageService);
-    this._attachmentManager = new AttachmentManager();
+    this._capabilitiesManager = capabilitiesManager;
+    this._attachmentManager = attachmentManager;
+    this._fileDownloadHandler = fileDownloadHandler;
+
+    // Извлекаем UI-элементы из rootElement
+    this._chat = this._rootElement.querySelector('.chat');
+    this._chatForm = this._rootElement.querySelector('.chat__form');
+    this._chatTextarea = this._rootElement.querySelector('.chat__textarea');
+    this._chatSendButton = this._rootElement.querySelector('.chat__submit');
+    this._chatAttachButton =
+      this._rootElement.querySelector('.chat__btn-attach');
+    this._chatAttachmentsPreview =
+      this._rootElement.querySelector('.form-att-prev');
+    this._chatContent = this._rootElement.querySelector('.chat__content');
+    this._chatFeedWrap = this._rootElement.querySelector('.chat__feed-wrap');
+    this._emptyBlock = this._rootElement.querySelector('.chat__empty-block');
+
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
-    this._fileDownloadHandler = new FileDownloadHandler();
   }
 
   /**
