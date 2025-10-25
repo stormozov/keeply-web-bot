@@ -405,8 +405,20 @@ export default class KeeplyBot {
       const isSuccess = await deleteMessage(messageId);
       if (!isSuccess) return;
 
-      messageElement.remove();
-      this._lazyLoader?.reset();
+      // Добавляем класс для анимации удаления
+      messageElement.classList.add('chat__message-item--deleting');
+
+      // Ждем завершения анимации, затем удаляем элемент
+      const handleTransitionEnd = (): void => {
+        messageElement.remove();
+        this._lazyLoader?.reset();
+        messageElement.removeEventListener(
+          'transitionend',
+          handleTransitionEnd
+        );
+      };
+
+      messageElement.addEventListener('transitionend', handleTransitionEnd);
     });
   }
 
