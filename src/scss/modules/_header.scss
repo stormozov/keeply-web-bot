@@ -83,4 +83,11 @@
   &__btns {
     @include flex-gap(spacing('xs'));
   }
+
+  &__btn {
+    &--active {
+      background-color: color('primary') !important;
+      color: color('white') !important;
+    }
+  }
 }

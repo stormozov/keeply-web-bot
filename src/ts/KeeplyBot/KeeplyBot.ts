@@ -10,6 +10,7 @@ import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
 import { DragAndDropManager } from './managers/DragAndDropManager';
 import LazyLoader from './managers/LazyLoader';
+import SidebarManager from './managers/SidebarManager';
 import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
 import { FileType } from './shared/types';
@@ -48,6 +49,7 @@ export default class KeeplyBot {
   private _messageService: MessageService;
   private _capabilitiesManager: CapabilitiesManager;
   private _attachmentManager: AttachmentManager;
+  private _sidebarManager!: SidebarManager;
   private _lazyLoader!: LazyLoader | null;
   private _dragDropManager!: DragAndDropManager | null;
 
@@ -82,6 +84,7 @@ export default class KeeplyBot {
 
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
     this._notificationManager = new NotificationManager();
+    this._sidebarManager = new SidebarManager(this._rootElement);
   }
 
   /**
@@ -126,6 +129,7 @@ export default class KeeplyBot {
     this._initDragAndDrop();
     this._initFileDownloadHandler();
     this._initMessageDeleteHandler();
+    this._initSidebarHandlers();
     this._updateSendButtonState();
   }
 
@@ -471,6 +475,35 @@ export default class KeeplyBot {
 
       messageElement.addEventListener('transitionend', handleTransitionEnd);
     });
+  }
+
+  /**
+   * Инициализация обработчиков для sidebar
+   */
+  private _initSidebarHandlers(): void {
+    if (this._botUi.ui.buttonFavorites) {
+      this._botUi.ui.buttonFavorites.addEventListener('click', () => {
+        if (!(this._botUi.ui.buttonFavorites instanceof HTMLElement)) return;
+        this._sidebarManager.open('favorites', this._botUi.ui.buttonFavorites);
+      });
+    }
+
+    if (this._botUi.ui.buttonAttachments) {
+      this._botUi.ui.buttonAttachments.addEventListener('click', () => {
+        if (!(this._botUi.ui.buttonAttachments instanceof HTMLElement)) return;
+        this._sidebarManager.open(
+          'attachments',
+          this._botUi.ui.buttonAttachments
+        );
+      });
+    }
+
+    if (this._botUi.ui.buttonSettings) {
+      this._botUi.ui.buttonSettings.addEventListener('click', () => {
+        if (!(this._botUi.ui.buttonSettings instanceof HTMLElement)) return;
+        this._sidebarManager.open('settings', this._botUi.ui.buttonSettings);
+      });
+    }
   }
 
   /**
