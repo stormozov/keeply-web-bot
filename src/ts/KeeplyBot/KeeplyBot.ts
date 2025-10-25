@@ -3,6 +3,7 @@
 // =============================================================================
 
 import createElement from '../utils/createElementFunction';
+import { deleteMessage } from './api/api';
 import { ChatFormController } from './controllers/ChatFormController';
 import FileDownloadHandler from './handlers/FileDownloadHandler';
 import { AttachmentManager } from './managers/AttachmentManager';
@@ -119,6 +120,7 @@ export default class KeeplyBot {
     this._initAttachmentHandlers();
     this._initDragAndDrop();
     this._initFileDownloadHandler();
+    this._initMessageDeleteHandler();
     this._updateSendButtonState();
   }
 
@@ -379,6 +381,32 @@ export default class KeeplyBot {
   private _initFileDownloadHandler(): void {
     this._chatContent?.addEventListener('click', (e) => {
       this._fileDownloadHandler.handle(e);
+    });
+  }
+
+  /**
+   * Инициализация обработчика удаления выбранного сообщения.
+   */
+  private _initMessageDeleteHandler(): void {
+    this._chatContent?.addEventListener('click', async (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.msg-dropdown__button--delete')) return;
+
+      e.preventDefault();
+
+      const messageElement = target.closest('.chat__message-item');
+      if (!(messageElement instanceof HTMLElement)) return;
+
+      const messageId = messageElement.id;
+      if (!messageId) return;
+
+      if (!confirm('Вы уверены, что хотите удалить это сообщение?')) return;
+
+      const isSuccess = await deleteMessage(messageId);
+      if (!isSuccess) return;
+
+      messageElement.remove();
+      this._lazyLoader?.reset();
     });
   }
 

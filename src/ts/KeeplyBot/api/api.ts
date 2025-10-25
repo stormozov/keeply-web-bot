@@ -88,3 +88,49 @@ export const sendMessage = async (
     throw error;
   }
 };
+
+/**
+ * Удаляет сообщение с указанным идентификатором через API.
+ *
+ * Эта функция отправляет DELETE-запрос к эндпоинту `/api/messages/{messageId}`.
+ * В случае успеха (HTTP 2xx) возвращает `true`. При любых ошибках — сетевых,
+ * серверных или валидации входных данных — возвращает `false` и записывает
+ * соответствующее сообщение в консоль.
+ *
+ * @param {string} messageId - Уникальный идентификатор сообщения. Должен быть
+ * непустой строкой. Если параметр отсутствует или пуст, функция немедленно
+ * вернёт `false` и выведет предупреждение в консоль.
+ * @returns {Promise<boolean>}
+ * - `true`, если удаление сообщения прошло успешно
+ * - `false` в противном случае
+ */
+export const deleteMessage = async (messageId: string): Promise<boolean> => {
+  if (!messageId) {
+    console.warn('deleteMessage: messageId is required');
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${URL}/api/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) return true;
+
+    // Опционально: логируем тело ошибки, если сервер его возвращает
+    let errorMessage = `Failed to delete message. Status: ${response.status}`;
+    try {
+      const errorData = await response.json().catch(() => ({}));
+      errorMessage = errorData.message || errorMessage;
+    } catch {
+      // Игнорируем ошибки при парсинге тела ошибки
+    }
+
+    console.error(errorMessage);
+    return false;
+  } catch (error) {
+    const err = error as Error;
+    console.error('Network error while deleting message:', err.message);
+    return false;
+  }
+};
