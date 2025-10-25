@@ -8,7 +8,11 @@ import createElement from '../../utils/createElementFunction';
 /**
  * Типы контента для sidebar
  */
-export type SidebarContentType = 'favorites' | 'attachments' | 'settings';
+export type SidebarContentType =
+  | 'favorites'
+  | 'attachments'
+  | 'settings'
+  | 'chat-settings';
 
 /**
  * Класс для управления боковой панелью (sidebar)
@@ -124,6 +128,24 @@ export default class SidebarManager {
         this.close();
       }
     });
+
+    // Обработчик кликов на контенте sidebar для переключения контента
+    if (this._sidebarContent) {
+      this._sidebarContent.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const button = target.closest('[data-action]');
+        if (!button) return;
+
+        e.stopPropagation(); // Предотвращаем закрытие сайдбара при клике внутри
+
+        const action = button.getAttribute('data-action');
+        if (action === 'open-chat-settings') {
+          this._updateContent('chat-settings');
+        } else if (action === 'back-to-settings') {
+          this._updateContent('settings');
+        }
+      });
+    }
   }
 
   /**
@@ -148,11 +170,15 @@ export default class SidebarManager {
         title = 'Настройки';
         content = this._createSettingsContent();
         break;
+      case 'chat-settings':
+        title = 'Настройки чата';
+        content = this._createChatSettingsContent();
+        break;
     }
 
     this._sidebarTitle.textContent = title;
     this._sidebarContent.replaceChildren();
-    if (content) this._sidebarContent.appendChild(content);
+    if (content) this._sidebarContent.append(content);
   }
 
   /**
@@ -166,7 +192,7 @@ export default class SidebarManager {
     return createElement({
       tag: 'div',
       className: 'sidebar__favorites',
-      children: [this._createEmptyContent()],
+      children: [this._buildEmptyContentConfig()],
     });
   }
 
@@ -181,7 +207,7 @@ export default class SidebarManager {
     return createElement({
       tag: 'div',
       className: 'sidebar__attachments',
-      children: [this._createEmptyContent()],
+      children: [this._buildEmptyContentConfig()],
     });
   }
 
@@ -209,7 +235,7 @@ export default class SidebarManager {
                   tag: 'button',
                   className: ['btn', 'btn--secondary', 'sidebar__settings-btn'],
                   attrs: {
-                    'data-action': 'clear-chat',
+                    'data-action': 'open-chat-settings',
                   },
                   children: [
                     {
@@ -233,13 +259,140 @@ export default class SidebarManager {
   }
 
   /**
+   * Создает элемент настроек чата в сайдбаре
+   *
+   * @return {HTMLElement} HTMLElement настроек чата
+   *
+   * @see {@link createElement} - Функция создания HTML-элемента
+   */
+  private _createChatSettingsContent(): HTMLElement {
+    return createElement({
+      tag: 'div',
+      className: 'sidebar__chat-settings',
+      children: [
+        this._buildSidebarBackBtnConfig(),
+        {
+          tag: 'ul',
+          className: 'sidebar__settings-list',
+          children: [
+            {
+              tag: 'li',
+              className: 'sidebar__settings-item',
+              children: [
+                {
+                  tag: 'button',
+                  className: ['btn', 'btn--secondary', 'sidebar__settings-btn'],
+                  attrs: {
+                    'data-action': 'import-chat',
+                  },
+                  children: [
+                    {
+                      tag: 'span',
+                      className: ['btn__icon', 'material-symbols-outlined'],
+                      text: 'download',
+                    },
+                    {
+                      tag: 'p',
+                      className: 'sidebar__settings-btn-text',
+                      text: 'Импортировать',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              tag: 'li',
+              className: 'sidebar__settings-item',
+              children: [
+                {
+                  tag: 'button',
+                  className: ['btn', 'btn--secondary', 'sidebar__settings-btn'],
+                  attrs: {
+                    'data-action': 'export-chat',
+                  },
+                  children: [
+                    {
+                      tag: 'span',
+                      className: ['btn__icon', 'material-symbols-outlined'],
+                      text: 'upload',
+                    },
+                    {
+                      tag: 'p',
+                      className: 'sidebar__settings-btn-text',
+                      text: 'Экспортировать',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              tag: 'li',
+              className: 'sidebar__settings-item',
+              children: [
+                {
+                  tag: 'button',
+                  className: ['btn', 'btn--secondary', 'sidebar__settings-btn'],
+                  attrs: {
+                    'data-action': 'clear-chat',
+                  },
+                  children: [
+                    {
+                      tag: 'span',
+                      className: ['btn__icon', 'material-symbols-outlined'],
+                      text: 'delete_forever',
+                    },
+                    {
+                      tag: 'p',
+                      className: 'sidebar__settings-btn-text',
+                      text: 'Очистить чат',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  /**
+   * Создает конфигурацию кнопки назад в сайдбаре
+   *
+   * @returns {ICreateElementOptions} Конфигурация кнопки назад
+   *
+   * @see {@link ICreateElementOptions} - Интерфейс для конфигурации элемента
+   */
+  private _buildSidebarBackBtnConfig(): ICreateElementOptions {
+    return {
+      tag: 'button',
+      className: ['btn', 'sidebar__back-btn'],
+      attrs: {
+        'data-action': 'back-to-settings',
+      },
+      children: [
+        {
+          tag: 'span',
+          className: ['btn__icon', 'material-symbols-outlined'],
+          text: 'arrow_back',
+        },
+        {
+          tag: 'p',
+          className: 'sidebar__settings-btn-text',
+          text: 'Назад',
+        },
+      ],
+    };
+  }
+
+  /**
    * Создает конфигурацию для пустого контента
    *
    * @return {HTMLElement} Конфигурация пустого контента
    *
    * @see {@link ICreateElementOptions} - Интерфейс для конфигурации элемента
    */
-  private _createEmptyContent(): ICreateElementOptions {
+  private _buildEmptyContentConfig(): ICreateElementOptions {
     return {
       tag: 'p',
       className: 'sidebar__empty',

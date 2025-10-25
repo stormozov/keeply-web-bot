@@ -57,4 +57,16 @@ body {
     justify-content: center;
     width: size('full');
   }
+
+  &__back-btn {
+    justify-content: flex-start;
+    width: size('full');
+    margin-bottom: spacing('md');
+    padding: spacing('sm');
+    background-color: color('transparent');
+
+    &:hover {
+      background-color: color('secondary');
+    }
+  }
 }
