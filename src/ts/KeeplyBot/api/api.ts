@@ -134,3 +134,40 @@ export const deleteMessage = async (messageId: string): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Очищает весь чат через API.
+ *
+ * Эта функция отправляет DELETE-запрос к эндпоинту `/api/messages`.
+ * В случае успеха (HTTP 2xx) возвращает `true`. При любых ошибках — сетевых,
+ * серверных или валидации входных данных — возвращает `false` и записывает
+ * соответствующее сообщение в консоль.
+ *
+ * @returns {Promise<boolean>}
+ * - `true`, если очистка чата прошла успешно
+ * - `false` в противном случае
+ */
+export const deleteAllMessages = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(`${URL}/api/messages`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) return true;
+
+    let errorMessage = `Failed to clear chat. Status: ${response.status}`;
+    try {
+      const errorData = await response.json().catch(() => ({}));
+      errorMessage = errorData.message || errorMessage;
+    } catch {
+      // Игнорируем ошибки при парсинге тела ошибки
+    }
+
+    console.error(errorMessage);
+    return false;
+  } catch (error) {
+    const err = error as Error;
+    console.error('Network error while clearing chat:', err.message);
+    return false;
+  }
+};

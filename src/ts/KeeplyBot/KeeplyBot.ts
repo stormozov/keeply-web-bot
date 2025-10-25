@@ -3,7 +3,7 @@
 // =============================================================================
 
 import createElement from '../utils/createElementFunction';
-import { deleteMessage } from './api/api';
+import { deleteAllMessages, deleteMessage } from './api/api';
 import { ChatFormController } from './controllers/ChatFormController';
 import FileDownloadHandler from './handlers/FileDownloadHandler';
 import { AttachmentManager } from './managers/AttachmentManager';
@@ -205,6 +205,9 @@ export default class KeeplyBot {
           duration: 2500,
           position: 'bottom-center',
         };
+
+        // После отправки сообщения кнопка "Очистить чат" должна быть доступна
+        this._sidebarManager.updateClearChatButtonState(true);
       } catch (error) {
         console.error('Failed to send message:', error);
         notifyConfig = {
@@ -466,7 +469,8 @@ export default class KeeplyBot {
       // Ждем завершения анимации, затем удаляем элемент
       const handleTransitionEnd = (): void => {
         messageElement.remove();
-        this._lazyLoader?.reset();
+        this._lazyLoader?.removeMessage(messageId);
+
         messageElement.removeEventListener(
           'transitionend',
           handleTransitionEnd
@@ -504,6 +508,58 @@ export default class KeeplyBot {
         this._sidebarManager.open('settings', this._botUi.ui.buttonSettings);
       });
     }
+
+    // Обработчик клика на кнопку очистки чата
+    this._appElement?.addEventListener('click', async (e) => {
+      const target = e.target as HTMLElement;
+      const clearButton = target.closest(
+        '[data-action="clear-chat"]'
+      ) as HTMLElement;
+      if (!clearButton) return;
+
+      e.preventDefault();
+
+      // Подтверждение пользователя
+      if (
+        !confirm(
+          'Вы уверены, что хотите полностью очистить весь чат? Это действие нельзя отменить.'
+        )
+      ) {
+        return;
+      }
+
+      try {
+        // Отправляем запрос на сервер
+        const isSuccess = await deleteAllMessages();
+
+        if (isSuccess) {
+          this._lazyLoader?.clear();
+
+          // Показываем уведомление об успехе
+          this._notificationManager.show({
+            message: 'Чат успешно очищен',
+            type: 'success',
+            duration: 3000,
+            position: 'bottom-center',
+          });
+        } else {
+          // Показываем уведомление об ошибке
+          this._notificationManager.show({
+            message: 'Не удалось очистить чат. Попробуйте еще раз.',
+            type: 'error',
+            duration: 3000,
+            position: 'bottom-center',
+          });
+        }
+      } catch {
+        this._notificationManager.show({
+          message: 'Произошла ошибка при очистке чата',
+          type: 'error',
+          duration: 3000,
+          position: 'bottom-center',
+        });
+      }
+    });
   }
 
   /**
@@ -554,9 +610,15 @@ export default class KeeplyBot {
 
       this._renderer.render(this._lazyLoader.getMessages());
       this._renderer.scrollToBottom(this._chatFeedWrap);
+
+      // Обновляем состояние кнопки "Очистить чат"
+      const hasMessages = this._lazyLoader.getMessages().length > 0;
+      this._sidebarManager.updateClearChatButtonState(hasMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
       this._renderer.render([]);
+      // При ошибке загрузки считаем чат пустым
+      this._sidebarManager.updateClearChatButtonState(false);
     }
   }
 
@@ -571,7 +633,11 @@ export default class KeeplyBot {
     this._lazyLoader = new LazyLoader(
       this._chatFeedWrap,
       this._messageService,
-      (allMessages: IUserMessageCard[]) => this._renderer.render(allMessages),
+      (allMessages: IUserMessageCard[]) => {
+        this._renderer.render(allMessages);
+        // Обновляем состояние кнопки "Очистить чат" при изменении сообщений
+        this._sidebarManager.updateClearChatButtonState(allMessages.length > 0);
+      },
       { messagePerPage: this._messagePerPage }
     );
 

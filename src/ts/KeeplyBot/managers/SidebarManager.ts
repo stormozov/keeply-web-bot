@@ -32,6 +32,7 @@ export default class SidebarManager {
   private _body: HTMLElement;
   private _activeButton: HTMLElement | null = null;
   private _isOpen = false;
+  private _clearChatButtonEnabled = false;
 
   /**
    * Создает экземпляр SidebarManager
@@ -47,6 +48,34 @@ export default class SidebarManager {
     this._sidebarClose = root.querySelector('.sidebar__close');
 
     this._init();
+  }
+
+  /**
+   * Обновляет состояние кнопки "Очистить чат"
+   *
+   * @param {boolean} isEnabled - Включена ли кнопка
+   *
+   * @description
+   * Находит кнопку с data-action="clear-chat" и обновляет её атрибут disabled
+   */
+  updateClearChatButtonState(isEnabled: boolean): void {
+    this._clearChatButtonEnabled = isEnabled;
+    this._applyClearChatButtonState();
+  }
+
+  /**
+   * Применяет состояние кнопки "Очистить чат" к существующей кнопке
+   */
+  private _applyClearChatButtonState(): void {
+    const clearButton = this._sidebarContent?.querySelector(
+      '[data-action="clear-chat"]'
+    ) as HTMLButtonElement;
+    if (!clearButton) return;
+
+    clearButton.disabled = this._clearChatButtonEnabled ? false : true;
+    clearButton.children[0].textContent = this._clearChatButtonEnabled
+      ? 'delete'
+      : 'lock';
   }
 
   /**
@@ -136,12 +165,12 @@ export default class SidebarManager {
         const button = target.closest('[data-action]');
         if (!button) return;
 
-        e.stopPropagation(); // Предотвращаем закрытие сайдбара при клике внутри
-
         const action = button.getAttribute('data-action');
         if (action === 'open-chat-settings') {
+          e.stopPropagation();
           this._updateContent('chat-settings');
         } else if (action === 'back-to-settings') {
+          e.stopPropagation();
           this._updateContent('settings');
         }
       });
@@ -179,6 +208,11 @@ export default class SidebarManager {
     this._sidebarTitle.textContent = title;
     this._sidebarContent.replaceChildren();
     if (content) this._sidebarContent.append(content);
+
+    // Применить состояние кнопки после создания контента
+    if (contentType === 'chat-settings') {
+      this._applyClearChatButtonState();
+    }
   }
 
   /**
@@ -284,6 +318,7 @@ export default class SidebarManager {
                   className: ['btn', 'btn--secondary', 'sidebar__settings-btn'],
                   attrs: {
                     'data-action': 'import-chat',
+                    disabled: 'true',
                   },
                   children: [
                     {
@@ -309,6 +344,7 @@ export default class SidebarManager {
                   className: ['btn', 'btn--secondary', 'sidebar__settings-btn'],
                   attrs: {
                     'data-action': 'export-chat',
+                    disabled: 'true',
                   },
                   children: [
                     {
@@ -334,12 +370,13 @@ export default class SidebarManager {
                   className: ['btn', 'btn--secondary', 'sidebar__settings-btn'],
                   attrs: {
                     'data-action': 'clear-chat',
+                    disabled: this._clearChatButtonEnabled ? 'false' : 'true',
                   },
                   children: [
                     {
                       tag: 'span',
                       className: ['btn__icon', 'material-symbols-outlined'],
-                      text: 'delete_forever',
+                      text: this._clearChatButtonEnabled ? 'delete' : 'lock',
                     },
                     {
                       tag: 'p',

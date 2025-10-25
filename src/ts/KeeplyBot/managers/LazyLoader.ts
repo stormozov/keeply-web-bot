@@ -131,6 +131,17 @@ export default class LazyLoader {
   }
 
   /**
+   * Очищает все сообщения и сбрасывает состояние загрузчика
+   */
+  clear(): void {
+    this._messages = [];
+    this._currentOffset = 0;
+    this._hasMore = true;
+    this._isLoading = false;
+    this._onUpdate(this._messages);
+  }
+
+  /**
    * Возвращает копию массива сообщений
    *
    * @returns {IUserMessageCard[]} Копия массива сообщений
@@ -151,6 +162,18 @@ export default class LazyLoader {
   appendNewMessages(messages: IUserMessageCard[]): void {
     this._messages = [...this._messages, ...messages];
     this._currentOffset += messages.length;
+    this._onUpdate(this._messages);
+  }
+
+  /**
+   * Удаляет сообщение по ID
+   *
+   * @param {string} messageId - ID сообщения для удаления
+   *
+   * @see {@link IUserMessageCard} - Интерфейс сообщения
+   */
+  removeMessage(messageId: string): void {
+    this._messages = this._messages.filter((msg) => msg.id !== messageId);
     this._onUpdate(this._messages);
   }
 
