@@ -37,19 +37,32 @@
 
   // Блок "сообщения"
   &__message {
-    &-body {
-      @include flex-col-gap(spacing('lg'));
-    }
     &-item {
-      padding: spacing('md');
-      border-radius: radius('md');
-      background-color: color('white');
+      display: flex;
+      align-items: end;
+      gap: spacing('xs');
 
       font-size: inherit;
 
       &:not(:last-child) {
         margin-bottom: spacing('md');
       }
+
+      &--deleting {
+        opacity: 0;
+        transform: translateX(-100%);
+        transition:
+          opacity 0.3s ease-out,
+          transform 0.3s ease-out;
+      }
+    }
+
+    &-body {
+      @include flex-col-gap(spacing('lg'));
+      padding: spacing('md');
+      width: size('full');
+      border-radius: radius('md');
+      background-color: color('white');
     }
 
     &-link {

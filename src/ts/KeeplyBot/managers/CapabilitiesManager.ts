@@ -65,19 +65,25 @@ export class CapabilitiesManager {
    *    - Устанавливает лимиты и фильтры типов файлов
    */
   applyToUi(botUi: IBotUiStructure): void {
-    for (const category in botUi) {
+    const categories = Object.keys(botUi) as (keyof IBotUiStructure)[];
+    for (const category of categories) {
       const uiCategory = botUi[category];
       const capCategory =
         this._capabilities[category as keyof IBotCapabilities];
       if (!capCategory || typeof capCategory !== 'object') continue;
 
-      for (const elementKey in uiCategory) {
-        const element = uiCategory[elementKey];
-        const config = capCategory[elementKey as keyof typeof capCategory] as
-          | ICapabilitiesElementSettings
-          | undefined;
-        if (element && config) {
-          this._updateElementState(element, config);
+      if (typeof uiCategory === 'object' && uiCategory !== null) {
+        const elementKeys = Object.keys(
+          uiCategory
+        ) as (keyof typeof uiCategory)[];
+        for (const elementKey of elementKeys) {
+          const element = uiCategory[elementKey];
+          const config = capCategory[elementKey as keyof typeof capCategory] as
+            | ICapabilitiesElementSettings
+            | undefined;
+          if (element && config) {
+            this._updateElementState(element, config);
+          }
         }
       }
     }

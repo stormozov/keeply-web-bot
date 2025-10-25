@@ -25,6 +25,15 @@ body {
     right: 0;
   }
 
+  &__close {
+    background-color: color('transparent');
+
+    &:hover {
+      transform: rotate(360deg);
+      color: color('primary');
+    }
+  }
+
   &__header {
     @include flex-between-center;
     padding: spacing('lg');
@@ -38,5 +47,26 @@ body {
 
   &__content {
     padding: spacing('lg');
+  }
+
+  &__settings-list {
+    @include flex-col-gap(spacing('xs'));
+  }
+
+  &__settings-btn {
+    justify-content: center;
+    width: size('full');
+  }
+
+  &__back-btn {
+    justify-content: flex-start;
+    width: size('full');
+    margin-bottom: spacing('md');
+    padding: spacing('sm');
+    background-color: color('transparent');
+
+    &:hover {
+      background-color: color('secondary');
+    }
   }
 }

@@ -8,9 +8,16 @@ import { ICreateElementOptions } from '../../shared/interfaces';
  * Интерфейс для структуры UI-элементов бота, которые настраиваются сервером
  */
 export interface IBotUiStructure {
-  [category: string]: {
+  ui: {
     [elementKey: string]: HTMLElement | null;
   };
+  messaging: {
+    [elementKey: string]: HTMLElement | null;
+  };
+  search: {
+    [elementKey: string]: HTMLElement | null;
+  };
+  sidebar: ISidebarStructure;
 }
 
 // =============================================================================
@@ -101,6 +108,16 @@ export interface IUiCapabilities {
   buttonFavorites: ICapabilitiesElementSettings;
   buttonAttachments: ICapabilitiesElementSettings;
   buttonSettings: ICapabilitiesElementSettings;
+}
+
+/**
+ * Интерфейс для структуры элементов sidebar
+ */
+export interface ISidebarStructure {
+  sidebarElement: HTMLElement | null;
+  sidebarContent: HTMLElement | null;
+  sidebarTitle: HTMLElement | null;
+  sidebarClose: HTMLElement | null;
 }
 
 /**

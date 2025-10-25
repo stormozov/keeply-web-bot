@@ -405,6 +405,61 @@ function buildMessageBodyConfig(
 }
 
 /**
+ * Создает конфигурацию выпадающего меню.
+ *
+ * @returns {ICreateElementOptions} Конфигурация выпадающего меню.
+ *
+ * @see {@link ICreateElementOptions} - Интерфейс для конфигурации элемента
+ */
+function buildDropdownConfig(): ICreateElementOptions {
+  return {
+    tag: 'div',
+    className: 'msg-dropdown',
+    children: [
+      {
+        tag: 'button',
+        className: ['msg-dropdown__more', 'material-symbols-outlined'],
+        text: 'more_vert',
+      },
+      {
+        tag: 'ul',
+        className: ['msg-dropdown__list', 'hidden'],
+        children: [
+          {
+            tag: 'li',
+            className: 'msg-dropdown__item',
+            children: [
+              {
+                tag: 'button',
+                className: [
+                  'msg-dropdown__button',
+                  'msg-dropdown__button--delete',
+                ],
+                children: [
+                  {
+                    tag: 'span',
+                    className: [
+                      'msg-dropdown__icon',
+                      'material-symbols-outlined',
+                    ],
+                    text: 'delete',
+                  },
+                  {
+                    tag: 'span',
+                    className: 'msg-dropdown__text',
+                    text: 'Удалить',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
  * Создает `DocumentFragment` с карточками сообщений для рендеринга.
  *
  * @param {IUserMessageCard[]} messages - Массив карточек сообщений для рендеринга.
@@ -433,6 +488,7 @@ export function buildMessageFragment(
           className: 'chat__message-body',
           children: bodyChildren,
         },
+        buildDropdownConfig(),
       ],
     });
     fragment.append(messageItem);

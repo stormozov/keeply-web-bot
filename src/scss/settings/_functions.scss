@@ -13,7 +13,8 @@
 @use './typography' as *;
 
 @function color($key) {
-  @return map.get($basic-colors, $key) or map.get($neutral-colors, $key);
+  @return map.get($basic-colors, $key) or map.get($neutral-colors, $key) or
+    map.get($notification-colors, $key);
 }
 
 @function spacing($keys...) {

@@ -1,0 +1,119 @@
+@use '../settings/functions' as *;
+@use '../utils/mixins' as *;
+
+.notifications-container {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+
+  // Позиции контейнера
+  &--top-left {
+    top: spacing('lg');
+    left: spacing('lg');
+  }
+
+  &--top-right {
+    top: spacing('lg');
+    right: spacing('lg');
+  }
+
+  &--bottom-center {
+    bottom: spacing('xxl') * 2;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+.notification {
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+
+  &--visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  display: flex;
+  align-items: center;
+  gap: spacing('xs');
+
+  padding: spacing('xs') spacing('sm');
+  margin-bottom: spacing('xs');
+  min-width: 300px;
+  max-width: 500px;
+  border-radius: radius('md');
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  font-size: font-size('sm');
+  line-height: 1.4;
+
+  &--success {
+    background-color: color('success-bg');
+    border-left: 4px solid color('success-border');
+    color: color('success-text');
+  }
+
+  &--error {
+    background-color: color('error-bg');
+    border-left: 4px solid color('error-border');
+    color: color('error-text');
+  }
+
+  &--info {
+    background-color: color('info-bg');
+    border-left: 4px solid color('info-border');
+    color: color('info-text');
+  }
+
+  &--warning {
+    background-color: color('warning-bg');
+    border-left: 4px solid color('warning-border');
+    color: color('warning-text');
+  }
+
+  &__icon {
+    display: inline-block;
+
+    @include material-symbol('info');
+
+    font-size: font-size('md');
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  &__message {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  &__close {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+
+    padding: 0;
+    margin-left: spacing('xs');
+    background: none;
+    border: none;
+
+    font-size: font-size('lg');
+    line-height: 1;
+    color: inherit;
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &:focus {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+  }
+}

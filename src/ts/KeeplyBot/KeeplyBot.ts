@@ -3,16 +3,21 @@
 // =============================================================================
 
 import createElement from '../utils/createElementFunction';
+import { deleteAllMessages, deleteMessage } from './api/api';
 import { ChatFormController } from './controllers/ChatFormController';
 import FileDownloadHandler from './handlers/FileDownloadHandler';
 import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
 import { DragAndDropManager } from './managers/DragAndDropManager';
 import LazyLoader from './managers/LazyLoader';
+import SidebarManager from './managers/SidebarManager';
 import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
 import { FileType } from './shared/types';
 import ChatRenderer from './ui/chat-renderer/ChatRenderer';
+import NotificationManager, {
+  INotificationConfig,
+} from './ui/notifications/NotificationManager';
 
 /**
  * Основной класс для управления функциональностью чат-бота Keeply
@@ -44,6 +49,7 @@ export default class KeeplyBot {
   private _messageService: MessageService;
   private _capabilitiesManager: CapabilitiesManager;
   private _attachmentManager: AttachmentManager;
+  private _sidebarManager!: SidebarManager;
   private _lazyLoader!: LazyLoader | null;
   private _dragDropManager!: DragAndDropManager | null;
 
@@ -55,6 +61,7 @@ export default class KeeplyBot {
 
   // Обработчики
   private _fileDownloadHandler!: FileDownloadHandler;
+  private _notificationManager!: NotificationManager;
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
@@ -76,6 +83,8 @@ export default class KeeplyBot {
     this._initUiElements(this._rootElement);
 
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
+    this._notificationManager = new NotificationManager();
+    this._sidebarManager = new SidebarManager(this._rootElement, this._botUi);
   }
 
   /**
@@ -119,6 +128,8 @@ export default class KeeplyBot {
     this._initAttachmentHandlers();
     this._initDragAndDrop();
     this._initFileDownloadHandler();
+    this._initMessageDeleteHandler();
+    this._initSidebarHandlers();
     this._updateSendButtonState();
   }
 
@@ -176,6 +187,7 @@ export default class KeeplyBot {
     const hasFiles =
       images.length > 0 || videos.length > 0 || audios.length > 0;
     const allFiles = [...images, ...videos, ...audios];
+    let notifyConfig: INotificationConfig = {} as INotificationConfig;
 
     if (text.trim().length > 0 || hasFiles) {
       try {
@@ -186,8 +198,24 @@ export default class KeeplyBot {
         this._lazyLoader?.appendNewMessages(newMessage);
         this._lazyLoader?.reset();
         this._renderer.scrollToBottom(this._chatFeedWrap);
+        // Показываем уведомление об успешной отправке
+        notifyConfig = {
+          message: 'Сообщение отправлено',
+          type: 'success',
+          duration: 2500,
+          position: 'bottom-center',
+        };
+
+        // После отправки сообщения кнопка "Очистить чат" должна быть доступна
+        this._sidebarManager.updateClearChatButtonState(true);
       } catch (error) {
         console.error('Failed to send message:', error);
+        notifyConfig = {
+          message: 'Произошла ошибка при отправке сообщения',
+          type: 'error',
+          duration: 2500,
+          position: 'bottom-center',
+        };
       }
     }
 
@@ -199,6 +227,9 @@ export default class KeeplyBot {
     );
     this._chatAttachmentsPreview?.classList.add('hidden');
     this._updateSendButtonState();
+
+    // Показываем уведомление об успехе отправки, либо уведомление об ошибке
+    this._notificationManager.show(notifyConfig);
   }
 
   /**
@@ -266,6 +297,13 @@ export default class KeeplyBot {
       );
 
       this._updateSendButtonState();
+
+      // Показываем уведомление об успешном прикреплении
+      this._notificationManager.show({
+        message: 'Файлы успешно прикреплены',
+        type: 'info',
+        duration: 2500,
+      });
     });
 
     fileInput.click();
@@ -371,6 +409,13 @@ export default class KeeplyBot {
     this._attachmentManager.renderPreview(this._chatAttachmentsPreview);
     this._chatAttachmentsPreview?.classList.remove('hidden');
     this._updateSendButtonState();
+
+    // Показываем уведомление об успешном прикреплении
+    this._notificationManager.show({
+      message: 'Файлы успешно прикреплены',
+      type: 'info',
+      duration: 2500,
+    });
   };
 
   /**
@@ -379,6 +424,129 @@ export default class KeeplyBot {
   private _initFileDownloadHandler(): void {
     this._chatContent?.addEventListener('click', (e) => {
       this._fileDownloadHandler.handle(e);
+    });
+  }
+
+  /**
+   * Инициализация обработчика удаления выбранного сообщения.
+   */
+  private _initMessageDeleteHandler(): void {
+    this._chatContent?.addEventListener('click', async (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.msg-dropdown__button--delete')) return;
+
+      e.preventDefault();
+
+      const messageElement = target.closest('.chat__message-item');
+      if (!(messageElement instanceof HTMLElement)) return;
+
+      const messageId = messageElement.id;
+      if (!messageId) return;
+
+      if (!confirm('Вы уверены, что хотите удалить это сообщение?')) return;
+
+      const isSuccess = await deleteMessage(messageId);
+      if (!isSuccess) {
+        this._notificationManager.show({
+          message: 'Не удалось удалить сообщение',
+          type: 'error',
+          position: 'bottom-center',
+        });
+        return;
+      }
+
+      // Показываем уведомление об успешном удалении
+      this._notificationManager.show({
+        message: 'Сообщение удалено',
+        type: 'success',
+        duration: 3000,
+        position: 'bottom-center',
+      });
+
+      // Добавляем класс для анимации удаления
+      messageElement.classList.add('chat__message-item--deleting');
+
+      // Ждем завершения анимации, затем удаляем элемент
+      const handleTransitionEnd = (): void => {
+        messageElement.remove();
+        this._lazyLoader?.removeMessage(messageId);
+
+        messageElement.removeEventListener(
+          'transitionend',
+          handleTransitionEnd
+        );
+      };
+
+      messageElement.addEventListener('transitionend', handleTransitionEnd);
+    });
+  }
+
+  /**
+   * Инициализация обработчиков для sidebar
+   */
+  private _initSidebarHandlers(): void {
+    this._sidebarManager.initSidebarHandlers();
+    this._clearChatButtonHandler();
+  }
+
+  /**
+   * Обработчик клика на кнопку очистки чата
+   */
+  private _clearChatButtonHandler(): void {
+    // Обработчик клика на кнопку очистки чата
+    this._appElement?.addEventListener('click', async (e) => {
+      const target = e.target as HTMLElement;
+      const clearButton = target.closest(
+        '[data-action="clear-chat"]'
+      ) as HTMLElement;
+      if (!clearButton) return;
+
+      e.preventDefault();
+
+      // Подтверждение пользователя
+      if (
+        !confirm(
+          'Вы уверены, что хотите полностью очистить весь чат? Это действие нельзя отменить.'
+        )
+      ) {
+        return;
+      }
+
+      let notification;
+
+      try {
+        // Отправляем запрос на сервер
+        const isSuccess = await deleteAllMessages();
+
+        if (isSuccess) {
+          this._lazyLoader?.clear();
+
+          // Показываем уведомление об успехе
+          notification = {
+            message: 'Чат успешно очищен',
+            type: 'success',
+            duration: 3000,
+            position: 'bottom-center',
+          };
+        } else {
+          // Показываем уведомление об ошибке
+          notification = {
+            message: 'Не удалось очистить чат. Попробуйте еще раз.',
+            type: 'error',
+            duration: 3000,
+            position: 'bottom-center',
+          };
+        }
+      } catch {
+        notification = {
+          message: 'Произошла ошибка при очистке чата',
+          type: 'error',
+          duration: 3000,
+          position: 'bottom-center',
+        };
+      } finally {
+        this._notificationManager.show(notification as INotificationConfig);
+      }
     });
   }
 
@@ -430,9 +598,15 @@ export default class KeeplyBot {
 
       this._renderer.render(this._lazyLoader.getMessages());
       this._renderer.scrollToBottom(this._chatFeedWrap);
+
+      // Обновляем состояние кнопки "Очистить чат"
+      const hasMessages = this._lazyLoader.getMessages().length > 0;
+      this._sidebarManager.updateClearChatButtonState(hasMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
       this._renderer.render([]);
+      // При ошибке загрузки считаем чат пустым
+      this._sidebarManager.updateClearChatButtonState(false);
     }
   }
 
@@ -447,7 +621,11 @@ export default class KeeplyBot {
     this._lazyLoader = new LazyLoader(
       this._chatFeedWrap,
       this._messageService,
-      (allMessages: IUserMessageCard[]) => this._renderer.render(allMessages),
+      (allMessages: IUserMessageCard[]) => {
+        this._renderer.render(allMessages);
+        // Обновляем состояние кнопки "Очистить чат" при изменении сообщений
+        this._sidebarManager.updateClearChatButtonState(allMessages.length > 0);
+      },
       { messagePerPage: this._messagePerPage }
     );
 

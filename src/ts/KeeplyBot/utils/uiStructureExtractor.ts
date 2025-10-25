@@ -31,5 +31,11 @@ export function extractBotUiStructure(root: HTMLElement): IBotUiStructure {
     search: {
       searchMessages: root.querySelector('.header__search-input'),
     },
+    sidebar: {
+      sidebarElement: root.querySelector('.sidebar'),
+      sidebarContent: root.querySelector('.sidebar__content'),
+      sidebarTitle: root.querySelector('.sidebar__title'),
+      sidebarClose: root.querySelector('.sidebar__close'),
+    },
   };
 }
