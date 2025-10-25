@@ -14,6 +14,9 @@ import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
 import { FileType } from './shared/types';
 import ChatRenderer from './ui/chat-renderer/ChatRenderer';
+import NotificationManager, {
+  INotificationConfig,
+} from './ui/notifications/NotificationManager';
 
 /**
  * Основной класс для управления функциональностью чат-бота Keeply
@@ -56,6 +59,7 @@ export default class KeeplyBot {
 
   // Обработчики
   private _fileDownloadHandler!: FileDownloadHandler;
+  private _notificationManager!: NotificationManager;
 
   /**
    * Создаёт экземпляр KeeplyBot и инициализирует ссылки на UI-элементы.
@@ -77,6 +81,7 @@ export default class KeeplyBot {
     this._initUiElements(this._rootElement);
 
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
+    this._notificationManager = new NotificationManager();
   }
 
   /**
@@ -178,6 +183,7 @@ export default class KeeplyBot {
     const hasFiles =
       images.length > 0 || videos.length > 0 || audios.length > 0;
     const allFiles = [...images, ...videos, ...audios];
+    let notifyConfig: INotificationConfig = {} as INotificationConfig;
 
     if (text.trim().length > 0 || hasFiles) {
       try {
@@ -188,8 +194,21 @@ export default class KeeplyBot {
         this._lazyLoader?.appendNewMessages(newMessage);
         this._lazyLoader?.reset();
         this._renderer.scrollToBottom(this._chatFeedWrap);
+        // Показываем уведомление об успешной отправке
+        notifyConfig = {
+          message: 'Сообщение отправлено',
+          type: 'success',
+          duration: 2500,
+          position: 'bottom-center',
+        };
       } catch (error) {
         console.error('Failed to send message:', error);
+        notifyConfig = {
+          message: 'Произошла ошибка при отправке сообщения',
+          type: 'error',
+          duration: 2500,
+          position: 'bottom-center',
+        };
       }
     }
 
@@ -201,6 +220,9 @@ export default class KeeplyBot {
     );
     this._chatAttachmentsPreview?.classList.add('hidden');
     this._updateSendButtonState();
+
+    // Показываем уведомление об успехе отправки, либо уведомление об ошибке
+    this._notificationManager.show(notifyConfig);
   }
 
   /**
@@ -268,6 +290,13 @@ export default class KeeplyBot {
       );
 
       this._updateSendButtonState();
+
+      // Показываем уведомление об успешном прикреплении
+      this._notificationManager.show({
+        message: 'Файлы успешно прикреплены',
+        type: 'info',
+        duration: 2500,
+      });
     });
 
     fileInput.click();
@@ -373,6 +402,13 @@ export default class KeeplyBot {
     this._attachmentManager.renderPreview(this._chatAttachmentsPreview);
     this._chatAttachmentsPreview?.classList.remove('hidden');
     this._updateSendButtonState();
+
+    // Показываем уведомление об успешном прикреплении
+    this._notificationManager.show({
+      message: 'Файлы успешно прикреплены',
+      type: 'info',
+      duration: 2500,
+    });
   };
 
   /**
@@ -403,7 +439,22 @@ export default class KeeplyBot {
       if (!confirm('Вы уверены, что хотите удалить это сообщение?')) return;
 
       const isSuccess = await deleteMessage(messageId);
-      if (!isSuccess) return;
+      if (!isSuccess) {
+        this._notificationManager.show({
+          message: 'Не удалось удалить сообщение',
+          type: 'error',
+          position: 'bottom-center',
+        });
+        return;
+      }
+
+      // Показываем уведомление об успешном удалении
+      this._notificationManager.show({
+        message: 'Сообщение удалено',
+        type: 'success',
+        duration: 3000,
+        position: 'bottom-center',
+      });
 
       // Добавляем класс для анимации удаления
       messageElement.classList.add('chat__message-item--deleting');

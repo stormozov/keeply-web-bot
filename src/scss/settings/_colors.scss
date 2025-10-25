@@ -25,3 +25,23 @@ $neutral-colors: (
   'border-divider': #ebebeb,
   'background': #fafafa,
 );
+
+// Цвета уведомлений
+$notification-colors: (
+  // Цвета успеха
+  'success-bg': #e8f5e8,
+  'success-text': #2e7d32,
+  'success-border': #4caf50,
+  // Цвета ошибок
+  'error-bg': #ffebee,
+  'error-text': #c62828,
+  'error-border': #f44336,
+  // Цвета информации
+  'info-bg': #e3f2fd,
+  'info-text': #1565c0,
+  'info-border': #2196f3,
+  // Цвета предупреждений
+  'warning-bg': #fff3e0,
+  'warning-text': #ef6c00,
+  'warning-border': #ff9800
+);
