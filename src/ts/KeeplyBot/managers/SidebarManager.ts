@@ -4,6 +4,7 @@
 
 import { ICreateElementOptions } from '../../shared/interfaces';
 import createElement from '../../utils/createElementFunction';
+import { IBotUiStructure } from '../shared/interfaces';
 
 /**
  * Типы контента для sidebar
@@ -33,21 +34,50 @@ export default class SidebarManager {
   private _activeButton: HTMLElement | null = null;
   private _isOpen = false;
   private _clearChatButtonEnabled = false;
+  private _botUi: IBotUiStructure;
 
   /**
    * Создает экземпляр SidebarManager
    *
    * @param {HTMLElement} root - Корневой элемент, в котором ищутся элементы
    * сайдбара
+   * @param {IBotUiStructure} botUi - Структура UI-элементов бота
    */
-  constructor(root: HTMLElement) {
+  constructor(root: HTMLElement, botUi: IBotUiStructure) {
     this._body = document.body;
     this._sidebarElement = root.querySelector('.sidebar');
     this._sidebarContent = root.querySelector('.sidebar__content');
     this._sidebarTitle = root.querySelector('.sidebar__title');
     this._sidebarClose = root.querySelector('.sidebar__close');
+    this._botUi = botUi;
 
     this._init();
+  }
+
+  /**
+   * Инициализация обработчиков для открытия sidebar
+   */
+  initSidebarHandlers(): void {
+    if (this._botUi.ui.buttonFavorites) {
+      this._botUi.ui.buttonFavorites.addEventListener('click', () => {
+        if (!(this._botUi.ui.buttonFavorites instanceof HTMLElement)) return;
+        this.open('favorites', this._botUi.ui.buttonFavorites);
+      });
+    }
+
+    if (this._botUi.ui.buttonAttachments) {
+      this._botUi.ui.buttonAttachments.addEventListener('click', () => {
+        if (!(this._botUi.ui.buttonAttachments instanceof HTMLElement)) return;
+        this.open('attachments', this._botUi.ui.buttonAttachments);
+      });
+    }
+
+    if (this._botUi.ui.buttonSettings) {
+      this._botUi.ui.buttonSettings.addEventListener('click', () => {
+        if (!(this._botUi.ui.buttonSettings instanceof HTMLElement)) return;
+        this.open('settings', this._botUi.ui.buttonSettings);
+      });
+    }
   }
 
   /**
@@ -61,21 +91,6 @@ export default class SidebarManager {
   updateClearChatButtonState(isEnabled: boolean): void {
     this._clearChatButtonEnabled = isEnabled;
     this._applyClearChatButtonState();
-  }
-
-  /**
-   * Применяет состояние кнопки "Очистить чат" к существующей кнопке
-   */
-  private _applyClearChatButtonState(): void {
-    const clearButton = this._sidebarContent?.querySelector(
-      '[data-action="clear-chat"]'
-    ) as HTMLButtonElement;
-    if (!clearButton) return;
-
-    clearButton.disabled = this._clearChatButtonEnabled ? false : true;
-    clearButton.children[0].textContent = this._clearChatButtonEnabled
-      ? 'delete'
-      : 'lock';
   }
 
   /**
@@ -175,6 +190,21 @@ export default class SidebarManager {
         }
       });
     }
+  }
+
+  /**
+   * Применяет состояние кнопки "Очистить чат" к существующей кнопке
+   */
+  private _applyClearChatButtonState(): void {
+    const clearButton = this._sidebarContent?.querySelector(
+      '[data-action="clear-chat"]'
+    ) as HTMLButtonElement;
+    if (!clearButton) return;
+
+    clearButton.disabled = this._clearChatButtonEnabled ? false : true;
+    clearButton.children[0].textContent = this._clearChatButtonEnabled
+      ? 'delete'
+      : 'lock';
   }
 
   /**

@@ -84,7 +84,7 @@ export default class KeeplyBot {
 
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
     this._notificationManager = new NotificationManager();
-    this._sidebarManager = new SidebarManager(this._rootElement);
+    this._sidebarManager = new SidebarManager(this._rootElement, this._botUi);
   }
 
   /**
@@ -485,30 +485,14 @@ export default class KeeplyBot {
    * Инициализация обработчиков для sidebar
    */
   private _initSidebarHandlers(): void {
-    if (this._botUi.ui.buttonFavorites) {
-      this._botUi.ui.buttonFavorites.addEventListener('click', () => {
-        if (!(this._botUi.ui.buttonFavorites instanceof HTMLElement)) return;
-        this._sidebarManager.open('favorites', this._botUi.ui.buttonFavorites);
-      });
-    }
+    this._sidebarManager.initSidebarHandlers();
+    this._clearChatButtonHandler();
+  }
 
-    if (this._botUi.ui.buttonAttachments) {
-      this._botUi.ui.buttonAttachments.addEventListener('click', () => {
-        if (!(this._botUi.ui.buttonAttachments instanceof HTMLElement)) return;
-        this._sidebarManager.open(
-          'attachments',
-          this._botUi.ui.buttonAttachments
-        );
-      });
-    }
-
-    if (this._botUi.ui.buttonSettings) {
-      this._botUi.ui.buttonSettings.addEventListener('click', () => {
-        if (!(this._botUi.ui.buttonSettings instanceof HTMLElement)) return;
-        this._sidebarManager.open('settings', this._botUi.ui.buttonSettings);
-      });
-    }
-
+  /**
+   * Обработчик клика на кнопку очистки чата
+   */
+  private _clearChatButtonHandler(): void {
     // Обработчик клика на кнопку очистки чата
     this._appElement?.addEventListener('click', async (e) => {
       const target = e.target as HTMLElement;
@@ -528,6 +512,8 @@ export default class KeeplyBot {
         return;
       }
 
+      let notification;
+
       try {
         // Отправляем запрос на сервер
         const isSuccess = await deleteAllMessages();
@@ -536,28 +522,30 @@ export default class KeeplyBot {
           this._lazyLoader?.clear();
 
           // Показываем уведомление об успехе
-          this._notificationManager.show({
+          notification = {
             message: 'Чат успешно очищен',
             type: 'success',
             duration: 3000,
             position: 'bottom-center',
-          });
+          };
         } else {
           // Показываем уведомление об ошибке
-          this._notificationManager.show({
+          notification = {
             message: 'Не удалось очистить чат. Попробуйте еще раз.',
             type: 'error',
             duration: 3000,
             position: 'bottom-center',
-          });
+          };
         }
       } catch {
-        this._notificationManager.show({
+        notification = {
           message: 'Произошла ошибка при очистке чата',
           type: 'error',
           duration: 3000,
           position: 'bottom-center',
-        });
+        };
+      } finally {
+        this._notificationManager.show(notification as INotificationConfig);
       }
     });
   }
