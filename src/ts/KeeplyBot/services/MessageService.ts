@@ -62,6 +62,7 @@ export default class MessageService {
    *
    * @param {string} text - Текстовое содержимое сообщения
    * @param {File[]} files - Массив прикрепленных файлов
+   * @param {(progress: number) => void} onUploadProgress - Коллбек для прогресса загрузки
    *
    * @returns {Promise<IUserMessageCard[]>} Обещание, разрешающееся
    * в обновленный список сообщений
@@ -73,9 +74,10 @@ export default class MessageService {
    */
   async submitUserMessage(
     text: string,
-    files: File[]
+    files: File[],
+    onUploadProgress?: (progress: number) => void
   ): Promise<IUserMessageCard[]> {
-    return await sendMessage(text, files);
+    return await sendMessage(text, files, onUploadProgress);
   }
 
   /**

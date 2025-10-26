@@ -9,6 +9,7 @@
 
   &__form-container {
     padding: spacing('sm', '0');
+    position: relative;
   }
 
   &__form {
@@ -22,6 +23,33 @@
     background-color: color('white');
     border: 1px solid color('border-divider');
     border-radius: radius('mdl');
+  }
+
+  // Прогресс бар отправки
+  .upload-progress {
+    position: absolute;
+    top: spacing('xxs') - 2;
+    left: spacing('0');
+    right: spacing('0');
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+
+    margin: spacing('0', 'sm');
+    height: 2px;
+    background-color: color('border-divider');
+    border-radius: radius('sm');
+
+    &__bar {
+      transition: width 0.3s ease;
+      width: 0%;
+      height: 100%;
+      background-color: color('accent');
+    }
+
+    &.visible {
+      opacity: 1;
+    }
   }
 
   &__textarea {

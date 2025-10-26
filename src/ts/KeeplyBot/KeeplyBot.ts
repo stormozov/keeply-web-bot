@@ -41,6 +41,8 @@ export default class KeeplyBot {
   private _chatFeedWrap!: HTMLElement | null;
   private _emptyBlock!: HTMLElement | null;
   private _appElement!: HTMLElement | null;
+  private _uploadProgress!: HTMLElement | null;
+  private _uploadProgressBar!: HTMLElement | null;
 
   // Параметры ленивой загрузки
   private readonly _messagePerPage = 10;
@@ -109,6 +111,8 @@ export default class KeeplyBot {
     this._chatContent = root.querySelector('.chat__content');
     this._chatFeedWrap = root.querySelector('.chat__feed-wrap');
     this._emptyBlock = root.querySelector('.chat__empty-block');
+    this._uploadProgress = root.querySelector('#upload-progress');
+    this._uploadProgressBar = root.querySelector('.upload-progress__bar');
   }
 
   /**
@@ -191,10 +195,15 @@ export default class KeeplyBot {
 
     if (text.trim().length > 0 || hasFiles) {
       try {
+        // Показываем прогресс бар только если есть файлы
+        if (hasFiles) this._showUploadProgress();
+
         const newMessage = await this._messageService.submitUserMessage(
           text,
-          allFiles
+          allFiles,
+          hasFiles ? this._updateUploadProgress.bind(this) : undefined
         );
+
         this._lazyLoader?.appendNewMessages(newMessage);
         this._lazyLoader?.reset();
         this._renderer.scrollToBottom(this._chatFeedWrap);
@@ -216,6 +225,14 @@ export default class KeeplyBot {
           duration: 2500,
           position: 'bottom-center',
         };
+      } finally {
+        // Устанавливаем прогресс на 100% перед скрытием
+        if (hasFiles) {
+          this._updateUploadProgress(100);
+          setTimeout(() => this._hideUploadProgress(), 200);
+        } else {
+          this._hideUploadProgress();
+        }
       }
     }
 
@@ -597,6 +614,38 @@ export default class KeeplyBot {
       images.length > 0 || videos.length > 0 || audios.length > 0;
 
     this._chatSendButton.disabled = !hasText && !hasFiles;
+  }
+
+  /**
+   * Показывает прогресс бар загрузки.
+   */
+  private _showUploadProgress(): void {
+    if (this._uploadProgress) {
+      this._uploadProgress.classList.add('visible');
+    }
+  }
+
+  /**
+   * Скрывает прогресс бар загрузки.
+   */
+  private _hideUploadProgress(): void {
+    if (this._uploadProgress) {
+      this._uploadProgress.classList.remove('visible');
+    }
+    if (this._uploadProgressBar) {
+      this._uploadProgressBar.style.width = '0%';
+    }
+  }
+
+  /**
+   * Обновляет прогресс бар загрузки.
+   *
+   * @param {number} progress - Процент загрузки (0-100).
+   */
+  private _updateUploadProgress(progress: number): void {
+    if (this._uploadProgressBar) {
+      this._uploadProgressBar.style.width = `${progress}%`;
+    }
   }
 
   /**

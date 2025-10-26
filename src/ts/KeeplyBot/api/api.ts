@@ -1,3 +1,4 @@
+import axios, { AxiosProgressEvent } from 'axios';
 import { IBotCapabilities, IUserMessageCard } from '../shared/interfaces';
 
 /**
@@ -58,6 +59,7 @@ export const fetchMessages = async (
  *
  * @param {string} message - Сообщение пользователя
  * @param {File[]} files - Массив файлов для отправки
+ * @param {(progress: number) => void} onUploadProgress - Коллбек для прогресса загрузки
  * @returns {Promise<IUserMessageCard[]>} - Промис с массивом карточек сообщений
  * @throws {Error} - Если
  *  - запрос не удался
@@ -67,22 +69,30 @@ export const fetchMessages = async (
  */
 export const sendMessage = async (
   message: string,
-  files: File[] = []
+  files: File[] = [],
+  onUploadProgress?: (progress: number) => void
 ): Promise<IUserMessageCard[]> => {
   try {
     const formData = new FormData();
     formData.append('message', message);
 
-    files.forEach((file) => {
-      formData.append('files', file);
+    files.forEach((file) => formData.append('files', file));
+
+    const response = await axios.post(`${URL}/api/messages`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+        if (onUploadProgress && progressEvent.total) {
+          const progress = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          onUploadProgress(progress);
+        }
+      },
     });
 
-    const response = await fetch(`${URL}/api/messages`, {
-      method: 'POST',
-      body: formData,
-    });
-    if (!response.ok) throw new Error('Failed to send message');
-    return response.json();
+    return response.data;
   } catch (error) {
     console.error('Error sending message:', error);
     throw error;
