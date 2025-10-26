@@ -291,19 +291,32 @@ export default class KeeplyBot {
       const target = event.target as HTMLInputElement;
       if (!target.files) return;
 
-      this._attachmentManager.addFiles([...target.files]);
+      const filesToAdd = [...target.files];
+      const addedCount = this._attachmentManager.addFiles(filesToAdd);
       this._attachmentManager.renderPreview(
         this._chatAttachmentsPreview as HTMLElement
       );
 
       this._updateSendButtonState();
 
-      // Показываем уведомление об успешном прикреплении
-      this._notificationManager.show({
-        message: 'Файлы успешно прикреплены',
-        type: 'info',
-        duration: 2500,
-      });
+      // Проверяем, достигнут ли лимит
+      if (addedCount < filesToAdd.length) {
+        const limit =
+          this._capabilitiesManager.getSendAttachmentsConfig()?.limit || 9;
+        this._notificationManager.show({
+          message: `Достигнут лимит прикрепления файлов (${limit})`,
+          type: 'warning',
+          duration: 3000,
+          position: 'bottom-center',
+        });
+      } else {
+        // Показываем уведомление об успешном прикреплении
+        this._notificationManager.show({
+          message: `Выбранные файлы(${addedCount}) успешно прикреплены`,
+          type: 'info',
+          duration: 2500,
+        });
+      }
     });
 
     fileInput.click();
@@ -405,17 +418,29 @@ export default class KeeplyBot {
       return;
     }
 
-    this._attachmentManager.addFiles(files);
+    const addedCount = this._attachmentManager.addFiles(files);
     this._attachmentManager.renderPreview(this._chatAttachmentsPreview);
     this._chatAttachmentsPreview?.classList.remove('hidden');
     this._updateSendButtonState();
 
-    // Показываем уведомление об успешном прикреплении
-    this._notificationManager.show({
-      message: 'Файлы успешно прикреплены',
-      type: 'info',
-      duration: 2500,
-    });
+    // Проверяем, достигнут ли лимит
+    if (addedCount < files.length) {
+      const limit =
+        this._capabilitiesManager.getSendAttachmentsConfig()?.limit || 9;
+      this._notificationManager.show({
+        message: `Достигнут лимит прикрепления файлов (${limit})`,
+        type: 'warning',
+        duration: 3000,
+        position: 'bottom-center',
+      });
+    } else {
+      // Показываем уведомление об успешном прикреплении
+      this._notificationManager.show({
+        message: `Выбранные файлы(${addedCount}) успешно прикреплены`,
+        type: 'info',
+        duration: 2500,
+      });
+    }
   };
 
   /**

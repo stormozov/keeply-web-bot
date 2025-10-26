@@ -58,6 +58,7 @@ export class AttachmentManager {
    * и проверки лимитов
    *
    * @param {File[]} files - Массив загруженных файлов для добавления
+   * @returns {number} Количество успешно добавленных файлов
    *
    * @description
    * 1. Получает разрешенные типы из конфигурации (`this._config.types`)
@@ -70,8 +71,9 @@ export class AttachmentManager {
    *    - `this._videos` для видео
    *    - `this._audios` для аудио
    * 5. Уважает установленный лимит общего количества файлов
+   * 6. Возвращает количество фактически добавленных файлов
    */
-  addFiles(files: File[]): void {
+  addFiles(files: File[]): number {
     const allowedTypes = this._config.types || [];
     const limit = this._config.limit ?? 20;
 
@@ -89,6 +91,8 @@ export class AttachmentManager {
       );
     }
 
+    let addedCount = 0;
+
     // Добавляем, соблюдая общий лимит
     for (const file of filteredFiles) {
       const total =
@@ -102,7 +106,11 @@ export class AttachmentManager {
       } else if (file.type.startsWith('audio/')) {
         this._audios.push(file);
       }
+
+      addedCount++;
     }
+
+    return addedCount;
   }
 
   /**
