@@ -34,6 +34,7 @@ export interface INotificationConfig {
  */
 interface INotificationTimeout {
   timeoutId: ReturnType<typeof setTimeout>;
+  animationId?: number;
   startTime: number;
   duration: number;
   remaining?: number;
@@ -172,7 +173,9 @@ export default class NotificationManager {
     setTimeout(() => notification.classList.add(this._visibleClass), 10);
 
     // Обработчик закрытия по кнопке
-    const closeButton = notification.querySelector('.notification__close');
+    const closeButton = notification.querySelector(
+      '.notification__close'
+    ) as HTMLElement;
     if (closeButton) {
       closeButton.addEventListener('click', () => {
         this._hideNotification(notification, position);
@@ -188,12 +191,16 @@ export default class NotificationManager {
     }, duration);
 
     // Сохраняем данные таймаута
-    this._notificationTimeouts.set(notification, {
+    const timeoutData = {
       timeoutId,
       startTime,
       duration,
       position,
-    });
+    };
+    this._notificationTimeouts.set(notification, timeoutData);
+
+    // Запускаем анимацию индикатора прогресса
+    if (closeButton) this._animateProgress(closeButton, duration, timeoutData);
 
     // Обработчики наведения мыши
     notification.addEventListener('mouseenter', () => {
@@ -202,9 +209,21 @@ export default class NotificationManager {
 
       clearTimeout(timeoutData.timeoutId);
 
+      // Остановить анимацию индикатора
+      if (timeoutData.animationId) {
+        cancelAnimationFrame(timeoutData.animationId);
+        timeoutData.animationId = undefined;
+      }
+
       const elapsed = Date.now() - timeoutData.startTime;
       timeoutData.remaining = timeoutData.duration - elapsed;
       this._notificationTimeouts.set(notification, timeoutData);
+
+      // Сохранить текущий прогресс (не сбрасывать)
+      if (closeButton) {
+        const currentProgress = Math.min(elapsed / timeoutData.duration, 1);
+        closeButton.style.setProperty('--progress', currentProgress.toString());
+      }
     });
 
     notification.addEventListener('mouseleave', () => {
@@ -218,6 +237,11 @@ export default class NotificationManager {
 
       timeoutData.timeoutId = newTimeoutId;
       this._notificationTimeouts.set(notification, timeoutData);
+
+      // Возобновить анимацию индикатора
+      if (closeButton && timeoutData.remaining) {
+        this._animateProgress(closeButton, timeoutData.remaining, timeoutData);
+      }
     });
   }
 
@@ -275,6 +299,48 @@ export default class NotificationManager {
   }
 
   /**
+   * Анимирует прогресс индикатора закрытия
+   *
+   * @param {HTMLElement} closeButton - Кнопка закрытия
+   * @param {number} duration - Длительность анимации в миллисекундах
+   * @param {INotificationTimeout} timeoutData - Данные таймаута
+   * @private
+   */
+  private _animateProgress(
+    closeButton: HTMLElement,
+    duration: number,
+    timeoutData: INotificationTimeout
+  ): void {
+    const startTime = Date.now();
+
+    const animate = (): void => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      closeButton.style.setProperty('--progress', progress.toString());
+
+      if (progress < 1) {
+        timeoutData.animationId = requestAnimationFrame(animate);
+        this._notificationTimeouts.set(
+          closeButton.closest('.notification') as HTMLElement,
+          timeoutData
+        );
+      } else {
+        timeoutData.animationId = undefined;
+        this._notificationTimeouts.set(
+          closeButton.closest('.notification') as HTMLElement,
+          timeoutData
+        );
+      }
+    };
+
+    timeoutData.animationId = requestAnimationFrame(animate);
+    this._notificationTimeouts.set(
+      closeButton.closest('.notification') as HTMLElement,
+      timeoutData
+    );
+  }
+
+  /**
    * Уничтожает менеджер уведомлений
    */
   destroy(): void {
@@ -284,6 +350,9 @@ export default class NotificationManager {
     this._isShowing.clear();
     this._notificationTimeouts.forEach((timeoutData) => {
       clearTimeout(timeoutData.timeoutId);
+      if (timeoutData.animationId) {
+        cancelAnimationFrame(timeoutData.animationId);
+      }
     });
     this._notificationTimeouts.clear();
   }
