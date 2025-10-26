@@ -6,6 +6,7 @@
 import linkifyHtml from 'linkify-html';
 import { ICreateElementOptions } from '../../../shared/interfaces';
 import createElement from '../../../utils/createElementFunction';
+import { formatFileSize } from '../../../utils/formatFileSize';
 import { SERVER_URL } from '../../api/api';
 import {
   IFileTypeConfig,
@@ -105,8 +106,8 @@ function buildImageFileItemConfig(
           {
             tag: 'p',
             className: ['chat__message-file-size', 'has-tooltip'],
-            text: String(file.size),
-            attrs: { 'data-tooltip': 'Размер файла' },
+            text: formatFileSize(file.size),
+            attrs: { 'data-tooltip': 'Размер изображения' },
           },
           {
             tag: 'button',
@@ -166,7 +167,7 @@ function buildVideoFileItemConfig(
           {
             tag: 'span',
             className: ['chat__message-file-size', 'has-tooltip'],
-            text: String(file.size),
+            text: formatFileSize(file.size),
             attrs: { 'data-tooltip': 'Размер видео-файла' },
           },
           {
@@ -229,7 +230,7 @@ function buildAudioFileItemConfig(
           {
             tag: 'p',
             className: ['chat__message-file-size', 'has-tooltip'],
-            text: String(file.size),
+            text: formatFileSize(file.size),
             attrs: { 'data-tooltip': 'Размер аудио-файла' },
           },
 
