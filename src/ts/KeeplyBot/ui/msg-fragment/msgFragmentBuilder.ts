@@ -7,6 +7,7 @@ import linkifyHtml from 'linkify-html';
 import { ICreateElementOptions } from '../../../shared/interfaces';
 import createElement from '../../../utils/createElementFunction';
 import { formatFileSize } from '../../../utils/formatFileSize';
+import { formatTelegramTime } from '../../../utils/formatTime';
 import { SERVER_URL } from '../../api/api';
 import {
   IFileTypeConfig,
@@ -398,7 +399,7 @@ function buildMessageBodyConfig(
   bodyChildren.push({
     tag: 'time',
     className: 'chat__message-timestamp',
-    text: new Date(msg.timestamp).toLocaleString(),
+    text: formatTelegramTime(msg.timestamp),
     attrs: { datetime: msg.timestamp },
   });
 
