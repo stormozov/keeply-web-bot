@@ -85,20 +85,38 @@ const FILE_TYPE_CONFIG = new Map<string, IFileTypeConfig>([
  */
 function buildImageFileItemConfig(
   file: IMessageFile,
-  fileUrl: string
+  fileUrl: string,
+  messageId: string
 ): ICreateElementOptions {
   return {
     tag: 'li',
     className: ['chat__message-file', 'chat__message-file--image'],
     children: [
       {
-        tag: 'img',
-        className: ['chat__message-file-img', 'has-tooltip'],
+        tag: 'a',
+        className: `simplelightbox-${messageId}`,
         attrs: {
-          src: fileUrl,
-          alt: file.originalname,
-          'data-tooltip': file.originalname,
+          href: fileUrl,
         },
+        children: [
+          {
+            tag: 'img',
+            className: ['chat__message-file-img', 'has-tooltip'],
+            attrs: {
+              src: fileUrl,
+              alt: file.originalname,
+              'data-tooltip': file.originalname,
+            },
+          },
+          {
+            tag: 'span',
+            className: [
+              'material-symbols-outlined',
+              'chat__message-file-zoom-icon',
+            ],
+            text: 'zoom_in',
+          },
+        ],
       },
       {
         tag: 'div',
@@ -366,7 +384,7 @@ function buildMessageBodyConfig(
       const fileUrl = `${SERVER_URL}${file.url}`;
       for (const [type, config] of FILE_TYPE_CONFIG) {
         if (config.test(file.mimetype)) {
-          buckets[type].push(config.builder(file, fileUrl));
+          buckets[type].push(config.builder(file, fileUrl, msg.id));
           break;
         }
       }

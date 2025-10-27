@@ -2,6 +2,8 @@
 // Модуль для рендеринга сообщений в чате
 // =============================================================================
 
+import SimpleLightbox from 'simplelightbox';
+import 'simplelightbox/dist/simple-lightbox.css';
 import createElement from '../../../utils/createElementFunction';
 import { IUserMessageCard } from '../../shared/interfaces';
 import { buildMessageFragment } from '../msg-fragment/msgFragmentBuilder';
@@ -43,6 +45,25 @@ export default class ChatRenderer {
   }
 
   /**
+   * Инициализирует SimpleLightbox для изображений в сообщении
+   *
+   * @param {HTMLElement} list - Список картинок в сообщении
+   *
+   * @see {@link https://simplelightbox.js.org/} - Документация SimpleLightbox
+   */
+  private _initSimpleLightbox(list: HTMLElement): void {
+    const messageItems = list.querySelectorAll('.chat__message-item');
+    messageItems.forEach((item) => {
+      new SimpleLightbox(`.simplelightbox-${item.id}`, {
+        // Опции SimpleLightbox
+        captionsData: 'alt',
+        captionDelay: 250,
+        spinner: true,
+      });
+    });
+  }
+
+  /**
    * Отображает список всех отправленных сообщений в интерфейсе чата
    *
    * @param {IUserMessageCard[]} messages - Массив карточек сообщений
@@ -55,6 +76,7 @@ export default class ChatRenderer {
    * 3. Если есть сообщения:
    *    - Скрывает блок "Пустой чат"
    *    - Создает и добавляет список сообщений
+   *    - Инициализирует SimpleLightbox для изображений
    *
    * @see {@link buildMessageFragment} - Функция рендеринга сообщений
    * в DOM-фрагмент
@@ -63,10 +85,8 @@ export default class ChatRenderer {
     this._chatContent?.replaceChildren();
 
     if (messages.length === 0) {
-      if (this._emptyBlock) {
-        this._chatContent?.append(this._emptyBlock);
-      }
-      return;
+      if (!this._emptyBlock) return;
+      this._chatContent?.append(this._emptyBlock);
     }
 
     if (this._emptyBlock instanceof HTMLElement) {
@@ -79,5 +99,8 @@ export default class ChatRenderer {
     });
     list.append(buildMessageFragment(messages));
     this._chatContent?.append(list);
+
+    // Инициализация SimpleLightbox для изображений в каждом сообщении
+    this._initSimpleLightbox(list);
   }
 }

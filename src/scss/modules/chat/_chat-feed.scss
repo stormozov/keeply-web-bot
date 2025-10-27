@@ -171,10 +171,39 @@
       }
 
       &-img {
+        position: relative;
+        transition: opacity 0.2s ease;
+        cursor: pointer;
+
         width: size('full');
         height: 262px;
         border-radius: radius('sm');
         object-fit: cover;
+
+        &:hover {
+          opacity: 0.5;
+        }
+      }
+
+      &-zoom-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        opacity: 0;
+        transform: translate(-50%, -50%);
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+
+        padding: spacing('xs');
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: radius('sm');
+
+        font-size: font-size('2xl');
+        color: color('white');
+
+        .chat__message-file-img:hover + & {
+          opacity: 1;
+        }
       }
     }
 

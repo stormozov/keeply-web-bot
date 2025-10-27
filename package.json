@@ -38,7 +38,8 @@
     "prepare": "husky install"
   },
   "dependencies": {
-    "core-js": "^3.46.0"
+    "core-js": "^3.46.0",
+    "simplelightbox": "^2.14.3"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",

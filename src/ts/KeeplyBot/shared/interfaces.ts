@@ -59,7 +59,11 @@ export interface IUserMessageCard {
  */
 export interface IFileTypeConfig {
   test: (mimetype: string) => boolean;
-  builder: (file: IMessageFile, fileUrl: string) => ICreateElementOptions;
+  builder: (
+    file: IMessageFile,
+    fileUrl: string,
+    messageId: string
+  ) => ICreateElementOptions;
   icon: string;
   title: string;
 }
