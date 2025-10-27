@@ -93,6 +93,11 @@ export default class MessageService {
    * @see {@link IBotCapabilities} - Интерфейс для Capabilities бота
    */
   async loadCapabilities(): Promise<IBotCapabilities> {
-    return await fetchCapabilities();
+    try {
+      return await fetchCapabilities();
+    } catch (error) {
+      console.error('Error loading capabilities:', error);
+      return {} as IBotCapabilities;
+    }
   }
 }

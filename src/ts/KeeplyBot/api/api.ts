@@ -12,17 +12,27 @@ const URL = SERVER_URL;
  *
  * @returns {Promise<IBotCapabilities>}
  *  - Capabilities бота в формате IBotCapabilities
- *  - Если запрос не удался, возвращает пустой объект
+ *
+ * @throws {Error} - Если запрос не удался или сервер вернул ошибку
  *
  * @see {@link IBotCapabilities} - Интерфейс для Capabilities бота
  */
 export const fetchCapabilities = async (): Promise<IBotCapabilities> => {
   try {
     const response = await fetch(`${URL}/api/capabilities`);
-    if (!response.ok) return {} as IBotCapabilities;
+    if (!response.ok) {
+      let errorMessage = `Failed to fetch capabilities. Status: ${response.status}`;
+      try {
+        const errorData = await response.json().catch(() => ({}));
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // Игнорируем ошибки при парсинге тела ошибки
+      }
+      throw new Error(errorMessage);
+    }
     return response.json();
-  } catch {
-    return {} as IBotCapabilities;
+  } catch (error) {
+    throw error;
   }
 };
 
@@ -33,25 +43,33 @@ export const fetchCapabilities = async (): Promise<IBotCapabilities> => {
  * @param {number} limit - Максимальное количество сообщений для загрузки
  * @returns {Promise<IUserMessageCard[]>} - Массив сообщений в формате IUserMessageCard
  *
+ * @throws {Error} - Если запрос не удался или сервер вернул ошибку
+ *
  * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
  */
 export const fetchMessages = async (
   offset: number = 0,
   limit: number = 10
 ): Promise<IUserMessageCard[]> => {
-  let messages: IUserMessageCard[] = [];
-
   try {
     const response = await fetch(
       `${URL}/api/messages?offset=${offset}&limit=${limit}`
     );
-    if (!response.ok) messages = [];
-    messages = await response.json();
-  } catch {
-    messages = [];
+    if (!response.ok) {
+      let errorMessage = `Failed to fetch messages. Status: ${response.status}`;
+      try {
+        const errorData = await response.json().catch(() => ({}));
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // Игнорируем ошибки при парсинге тела ошибки
+      }
+      throw new Error(errorMessage);
+    }
+    const data = await response.json();
+    return data.data || data;
+  } catch (error) {
+    throw error;
   }
-
-  return messages;
 };
 
 /**
@@ -59,8 +77,11 @@ export const fetchMessages = async (
  *
  * @param {string} message - Сообщение пользователя
  * @param {File[]} files - Массив файлов для отправки
- * @param {(progress: number) => void} onUploadProgress - Коллбек для прогресса загрузки
+ * @param {(progress: number) => void} onUploadProgress - Коллбек для прогресса
+ * загрузки
+ *
  * @returns {Promise<IUserMessageCard[]>} - Промис с массивом карточек сообщений
+ *
  * @throws {Error} - Если
  *  - запрос не удался
  *  - сервер вернул ошибку
@@ -92,9 +113,21 @@ export const sendMessage = async (
       },
     });
 
-    return response.data;
-  } catch (error) {
+    // Проверяем успешность ответа сервера
+    if (response.data && response.data.success === false) {
+      throw new Error(response.data.error || 'Ошибка сервера');
+    }
+
+    return response.data.data || response.data;
+  } catch (error: any) {
     console.error('Error sending message:', error);
+
+    // Если ошибка от сервера, используем её сообщение
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+
+    // Иначе используем стандартное сообщение
     throw error;
   }
 };
@@ -103,21 +136,18 @@ export const sendMessage = async (
  * Удаляет сообщение с указанным идентификатором через API.
  *
  * Эта функция отправляет DELETE-запрос к эндпоинту `/api/messages/{messageId}`.
- * В случае успеха (HTTP 2xx) возвращает `true`. При любых ошибках — сетевых,
- * серверных или валидации входных данных — возвращает `false` и записывает
- * соответствующее сообщение в консоль.
+ * В случае успеха (HTTP 2xx) возвращает `true`.
  *
  * @param {string} messageId - Уникальный идентификатор сообщения. Должен быть
- * непустой строкой. Если параметр отсутствует или пуст, функция немедленно
- * вернёт `false` и выведет предупреждение в консоль.
+ * непустой строкой.
  * @returns {Promise<boolean>}
  * - `true`, если удаление сообщения прошло успешно
- * - `false` в противном случае
+ *
+ * @throws {Error} - Если запрос не удался, сервер вернул ошибку или messageId пуст
  */
 export const deleteMessage = async (messageId: string): Promise<boolean> => {
   if (!messageId) {
-    console.warn('deleteMessage: messageId is required');
-    return false;
+    throw new Error('deleteMessage: messageId is required');
   }
 
   try {
@@ -127,21 +157,17 @@ export const deleteMessage = async (messageId: string): Promise<boolean> => {
 
     if (response.ok) return true;
 
-    // Опционально: логируем тело ошибки, если сервер его возвращает
     let errorMessage = `Failed to delete message. Status: ${response.status}`;
     try {
       const errorData = await response.json().catch(() => ({}));
-      errorMessage = errorData.message || errorMessage;
+      errorMessage = errorData.error || errorMessage;
     } catch {
       // Игнорируем ошибки при парсинге тела ошибки
     }
 
-    console.error(errorMessage);
-    return false;
+    throw new Error(errorMessage);
   } catch (error) {
-    const err = error as Error;
-    console.error('Network error while deleting message:', err.message);
-    return false;
+    throw error;
   }
 };
 
@@ -149,13 +175,12 @@ export const deleteMessage = async (messageId: string): Promise<boolean> => {
  * Очищает весь чат через API.
  *
  * Эта функция отправляет DELETE-запрос к эндпоинту `/api/messages`.
- * В случае успеха (HTTP 2xx) возвращает `true`. При любых ошибках — сетевых,
- * серверных или валидации входных данных — возвращает `false` и записывает
- * соответствующее сообщение в консоль.
+ * В случае успеха (HTTP 2xx) возвращает `true`.
  *
  * @returns {Promise<boolean>}
  * - `true`, если очистка чата прошла успешно
- * - `false` в противном случае
+ *
+ * @throws {Error} - Если запрос не удался или сервер вернул ошибку
  */
 export const deleteAllMessages = async (): Promise<boolean> => {
   try {
@@ -168,16 +193,13 @@ export const deleteAllMessages = async (): Promise<boolean> => {
     let errorMessage = `Failed to clear chat. Status: ${response.status}`;
     try {
       const errorData = await response.json().catch(() => ({}));
-      errorMessage = errorData.message || errorMessage;
+      errorMessage = errorData.error || errorMessage;
     } catch {
       // Игнорируем ошибки при парсинге тела ошибки
     }
 
-    console.error(errorMessage);
-    return false;
+    throw new Error(errorMessage);
   } catch (error) {
-    const err = error as Error;
-    console.error('Network error while clearing chat:', err.message);
-    return false;
+    throw error;
   }
 };

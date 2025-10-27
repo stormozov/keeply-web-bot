@@ -217,10 +217,12 @@ export default class KeeplyBot {
 
         // После отправки сообщения кнопка "Очистить чат" должна быть доступна
         this._sidebarManager.updateClearChatButtonState(true);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to send message:', error);
+        const errorMessage =
+          error.message || 'Произошла ошибка при отправке сообщения';
         notifyConfig = {
-          message: 'Произошла ошибка при отправке сообщения',
+          message: errorMessage,
           type: 'error',
           duration: 2500,
           position: 'bottom-center',
