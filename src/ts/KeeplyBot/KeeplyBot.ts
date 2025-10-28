@@ -138,6 +138,7 @@ export default class KeeplyBot {
     this._initFileDownloadHandler();
     this._initMessageDeleteHandler();
     this._initSidebarHandlers();
+    this._initMsgDropdownToggleHandler();
     this._updateSendButtonState();
   }
 
@@ -593,6 +594,47 @@ export default class KeeplyBot {
       };
 
       messageElement.addEventListener('transitionend', handleTransitionEnd);
+    });
+  }
+
+  /**
+   * Инициализация обработчика переключения выпадающего меню сообщений.
+   */
+  private _initMsgDropdownToggleHandler(): void {
+    const DROPDOWN_SELECTOR = '.msg-dropdown';
+    const MORE_BUTTON_SELECTOR = '.msg-dropdown__more';
+    const LIST_SELECTOR = '.msg-dropdown__list';
+    const HIDDEN_SELECTOR = 'hidden';
+
+    // ОБРАБОТЧИК клика по кнопке
+    this._chatContent?.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const moreButton = target.closest(MORE_BUTTON_SELECTOR);
+      if (!(moreButton instanceof HTMLElement)) return;
+
+      e.preventDefault();
+
+      const dropdown = moreButton.closest(DROPDOWN_SELECTOR);
+      if (!(dropdown instanceof HTMLElement)) return;
+
+      const list = dropdown.querySelector(LIST_SELECTOR);
+      if (!(list instanceof HTMLElement)) return;
+
+      list.classList.toggle(HIDDEN_SELECTOR);
+    });
+
+    // ОБРАБОТЧИК клика вне dropdown для закрытия
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.closest(DROPDOWN_SELECTOR)) return;
+
+      // Закрываем все открытые dropdown
+      const openLists = this._chatContent?.querySelectorAll(
+        `${LIST_SELECTOR}:not(${HIDDEN_SELECTOR})`
+      );
+      openLists?.forEach((list) => list.classList.add(HIDDEN_SELECTOR));
     });
   }
 

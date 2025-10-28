@@ -4,12 +4,6 @@
 .msg-dropdown {
   position: relative;
 
-  &:focus-within {
-    .msg-dropdown__list {
-      display: block;
-    }
-  }
-
   &__more {
     padding: spacing('xxs');
     background-color: color('white');
@@ -25,6 +19,9 @@
     position: absolute;
     bottom: 36px;
     right: 0;
+    transition:
+      opacity 0.5s ease,
+      transform 0.5s ease;
 
     padding: spacing('xxs');
     background-color: color('white');
@@ -32,15 +29,29 @@
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 
     &.hidden {
-      display: none;
+      display: block;
+      opacity: 0;
+      transform: translateY(48px);
+      z-index: -1;
+    }
+
+    &:not(.hidden) {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 
   &__button {
     @include flex-align-center-gap(spacing('xxs'));
+
     padding: spacing('xs');
+    width: size('full');
     background-color: color('transparent');
     border-radius: radius('xs');
+
+    &:not(&--delete):not(:disabled):hover {
+      background-color: color('secondary');
+    }
 
     &--delete {
       &:not(:disabled):hover {

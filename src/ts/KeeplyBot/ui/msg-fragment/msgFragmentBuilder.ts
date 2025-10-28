@@ -502,7 +502,7 @@ function buildDropdownConfig(msg: IUserMessageCard): ICreateElementOptions {
       },
       {
         tag: 'ul',
-        className: ['msg-dropdown__list', 'hidden'],
+        className: 'msg-dropdown__list hidden',
         children: dropdownItems,
       },
     ],
