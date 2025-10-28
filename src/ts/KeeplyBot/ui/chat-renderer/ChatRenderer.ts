@@ -68,6 +68,7 @@ export default class ChatRenderer {
    *
    * @param {IUserMessageCard[]} messages - Массив карточек сообщений
    * для отображения
+   * @param {Function} initDownloadHandlers - Функция инициализации обработчиков скачивания
    *
    * @description
    * 1. Очищает текущее содержимое чата
@@ -77,11 +78,15 @@ export default class ChatRenderer {
    *    - Скрывает блок "Пустой чат"
    *    - Создает и добавляет список сообщений
    *    - Инициализирует SimpleLightbox для изображений
+   *    - Инициализирует обработчики скачивания вложений
    *
    * @see {@link buildMessageFragment} - Функция рендеринга сообщений
    * в DOM-фрагмент
    */
-  render(messages: IUserMessageCard[]): void {
+  render(
+    messages: IUserMessageCard[],
+    initDownloadHandlers?: (fragment: DocumentFragment) => void
+  ): void {
     this._chatContent?.replaceChildren();
 
     if (messages.length === 0) {
@@ -97,7 +102,11 @@ export default class ChatRenderer {
       tag: 'ul',
       className: 'chat__messages-list',
     });
-    list.append(buildMessageFragment(messages));
+    const fragment = buildMessageFragment(messages);
+    if (initDownloadHandlers) {
+      initDownloadHandlers(fragment);
+    }
+    list.append(fragment);
     this._chatContent?.append(list);
 
     // Инициализация SimpleLightbox для изображений в каждом сообщении

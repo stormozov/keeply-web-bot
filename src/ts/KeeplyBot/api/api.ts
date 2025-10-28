@@ -203,3 +203,33 @@ export const deleteAllMessages = async (): Promise<boolean> => {
     throw error;
   }
 };
+
+/**
+ * Скачивает вложения сообщения в виде ZIP-архива.
+ *
+ * Эта функция отправляет GET-запрос к эндпоинту
+ * `/api/messages/{messageId}/attachments/download`, получает ZIP-архив
+ * с вложениями и инициирует скачивание файла в браузере.
+ *
+ * @param {string} messageId - Уникальный идентификатор сообщения. Должен
+ * быть непустой строкой.
+ * @returns {Promise<Response>} - Ответ от сервера с содержимым ZIP-архива
+ *
+ * @throws {Error} - Если запрос не удался, сервер вернул ошибку или messageId
+ * пуст
+ */
+export const downloadAttachments = async (
+  messageId: string
+): Promise<Response> => {
+  if (!messageId) throw new Error('downloadAttachments: messageId is required');
+
+  const url = `${URL}/api/messages/${messageId}/attachments/download`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};

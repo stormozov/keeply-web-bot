@@ -427,11 +427,70 @@ function buildMessageBodyConfig(
 /**
  * Создает конфигурацию выпадающего меню.
  *
+ * @param {IUserMessageCard} msg - Объект карточки сообщения для условного рендера кнопки скачивания.
  * @returns {ICreateElementOptions} Конфигурация выпадающего меню.
  *
  * @see {@link ICreateElementOptions} - Интерфейс для конфигурации элемента
  */
-function buildDropdownConfig(): ICreateElementOptions {
+function buildDropdownConfig(msg: IUserMessageCard): ICreateElementOptions {
+  const dropdownItems: ICreateElementOptions[] = [];
+
+  // Условно добавляем кнопку "Скачать вложения" только если есть файлы
+  if (msg.files && msg.files.length > 0) {
+    dropdownItems.push({
+      tag: 'li',
+      className: 'msg-dropdown__item',
+      children: [
+        {
+          tag: 'button',
+          className: [
+            'msg-dropdown__button',
+            'msg-dropdown__button--download-attachments',
+          ],
+          attrs: {
+            'data-message-id': msg.id,
+          },
+          children: [
+            {
+              tag: 'span',
+              className: ['msg-dropdown__icon', 'material-symbols-outlined'],
+              text: 'download',
+            },
+            {
+              tag: 'span',
+              className: 'msg-dropdown__text',
+              text: 'Скачать вложения',
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  // Всегда добавляем кнопку "Удалить"
+  dropdownItems.push({
+    tag: 'li',
+    className: 'msg-dropdown__item',
+    children: [
+      {
+        tag: 'button',
+        className: ['msg-dropdown__button', 'msg-dropdown__button--delete'],
+        children: [
+          {
+            tag: 'span',
+            className: ['msg-dropdown__icon', 'material-symbols-outlined'],
+            text: 'delete',
+          },
+          {
+            tag: 'span',
+            className: 'msg-dropdown__text',
+            text: 'Удалить',
+          },
+        ],
+      },
+    ],
+  });
+
   return {
     tag: 'div',
     className: 'msg-dropdown',
@@ -444,36 +503,7 @@ function buildDropdownConfig(): ICreateElementOptions {
       {
         tag: 'ul',
         className: ['msg-dropdown__list', 'hidden'],
-        children: [
-          {
-            tag: 'li',
-            className: 'msg-dropdown__item',
-            children: [
-              {
-                tag: 'button',
-                className: [
-                  'msg-dropdown__button',
-                  'msg-dropdown__button--delete',
-                ],
-                children: [
-                  {
-                    tag: 'span',
-                    className: [
-                      'msg-dropdown__icon',
-                      'material-symbols-outlined',
-                    ],
-                    text: 'delete',
-                  },
-                  {
-                    tag: 'span',
-                    className: 'msg-dropdown__text',
-                    text: 'Удалить',
-                  },
-                ],
-              },
-            ],
-          },
-        ],
+        children: dropdownItems,
       },
     ],
   };
@@ -491,6 +521,7 @@ function buildDropdownConfig(): ICreateElementOptions {
  * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment}
  */
+
 export function buildMessageFragment(
   messages: IUserMessageCard[]
 ): DocumentFragment {
@@ -508,7 +539,7 @@ export function buildMessageFragment(
           className: 'chat__message-body',
           children: bodyChildren,
         },
-        buildDropdownConfig(),
+        buildDropdownConfig(msg),
       ],
     });
     fragment.append(messageItem);

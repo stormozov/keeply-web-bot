@@ -3,7 +3,11 @@
 // =============================================================================
 
 import createElement from '../utils/createElementFunction';
-import { deleteAllMessages, deleteMessage } from './api/api';
+import {
+  deleteAllMessages,
+  deleteMessage,
+  downloadAttachments,
+} from './api/api';
 import { ChatFormController } from './controllers/ChatFormController';
 import FileDownloadHandler from './handlers/FileDownloadHandler';
 import { AttachmentManager } from './managers/AttachmentManager';
@@ -472,6 +476,73 @@ export default class KeeplyBot {
   }
 
   /**
+   * Создает обработчик клика для кнопки скачивания вложений.
+   *
+   * @param {string} messageId - ID сообщения.
+   */
+  private async _handleDownloadAttachments(messageId: string): Promise<void> {
+    try {
+      // Отправляем GET-запрос на сервер
+      const response = await downloadAttachments(messageId);
+
+      // Получаем данные как blob
+      const blob = await response.blob();
+
+      // Создаем URL для скачивания
+      const downloadUrl = window.URL.createObjectURL(blob);
+
+      // Создаем временную ссылку для скачивания
+      const a = createElement({
+        tag: 'a',
+        attrs: {
+          href: downloadUrl,
+          download: `attachments-${messageId}.zip`,
+        },
+      });
+
+      // Добавляем ссылку на страницу, кликаем и удаляем
+      document.body.append(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Освобождаем URL
+      window.URL.revokeObjectURL(downloadUrl);
+
+      // Показываем уведомление об успешном скачивании
+      this._notificationManager.show({
+        message: 'Вложения успешно скачаны',
+        type: 'info',
+        duration: 2500,
+      });
+    } catch {
+      this._notificationManager.show({
+        message: 'Произошла ошибка при скачивании вложений',
+        type: 'error',
+        duration: 2500,
+      });
+    }
+  }
+
+  /**
+   * Инициализирует обработчики событий для кнопок скачивания вложений.
+   *
+   * @param {DocumentFragment} fragment - Фрагмент с сообщениями.
+   */
+  private _initDownloadHandlers(fragment: DocumentFragment): void {
+    const downloadButtons = fragment.querySelectorAll(
+      '.msg-dropdown__button--download-attachments'
+    );
+
+    downloadButtons.forEach((button) => {
+      button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const messageId = (button as HTMLElement).dataset.messageId;
+        if (messageId) await this._handleDownloadAttachments(messageId);
+      });
+    });
+  }
+
+  /**
    * Инициализация обработчика удаления выбранного сообщения.
    */
   private _initMessageDeleteHandler(): void {
@@ -672,7 +743,10 @@ export default class KeeplyBot {
       // Загружаем начальные сообщения через LazyLoader
       await this._lazyLoader.loadInitial();
 
-      this._renderer.render(this._lazyLoader.getMessages());
+      this._renderer.render(
+        this._lazyLoader.getMessages(),
+        this._initDownloadHandlers.bind(this)
+      );
       this._renderer.scrollToBottom(this._chatFeedWrap);
 
       // Обновляем состояние кнопки "Очистить чат"
@@ -680,7 +754,7 @@ export default class KeeplyBot {
       this._sidebarManager.updateClearChatButtonState(hasMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
-      this._renderer.render([]);
+      this._renderer.render([], this._initDownloadHandlers.bind(this));
       // При ошибке загрузки считаем чат пустым
       this._sidebarManager.updateClearChatButtonState(false);
     }
@@ -698,7 +772,10 @@ export default class KeeplyBot {
       this._chatFeedWrap,
       this._messageService,
       (allMessages: IUserMessageCard[]) => {
-        this._renderer.render(allMessages);
+        this._renderer.render(
+          allMessages,
+          this._initDownloadHandlers.bind(this)
+        );
         // Обновляем состояние кнопки "Очистить чат" при изменении сообщений
         this._sidebarManager.updateClearChatButtonState(allMessages.length > 0);
       },
