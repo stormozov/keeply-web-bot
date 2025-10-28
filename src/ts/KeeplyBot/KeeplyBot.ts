@@ -482,9 +482,32 @@ export default class KeeplyBot {
    * @param {string} messageId - ID сообщения.
    */
   private async _handleDownloadAttachments(messageId: string): Promise<void> {
+    // Найти элемент прогресс-бара для этого сообщения
+    const messageElement = document.querySelector(`[id="${messageId}"]`);
+    const progressElement = messageElement?.querySelector(
+      '.chat__message-download-progress'
+    );
+
+    if (!(progressElement instanceof HTMLElement)) {
+      console.warn(`Progress element not found for message ${messageId}`);
+      return;
+    }
+
     try {
+      // Показываем прогресс-бар
+      progressElement.classList.remove('hidden');
+
+      // Симулируем прогресс загрузки
+      const progressInterval = setInterval(() => {
+        // Имитируем постепенное увеличение прогресса
+        // Визуально прогресс показывается через анимацию shimmer
+      }, 200);
+
       // Отправляем GET-запрос на сервер
       const response = await downloadAttachments(messageId);
+
+      // Останавливаем симуляцию прогресса
+      clearInterval(progressInterval);
 
       // Получаем данные как blob
       const blob = await response.blob();
@@ -509,6 +532,9 @@ export default class KeeplyBot {
       // Освобождаем URL
       window.URL.revokeObjectURL(downloadUrl);
 
+      // Оставляем прогресс-бар видимым еще 3 секунды после завершения
+      setTimeout(() => progressElement.classList.add('hidden'), 3000);
+
       // Показываем уведомление об успешном скачивании
       this._notificationManager.show({
         message: 'Вложения успешно скачаны',
@@ -516,6 +542,9 @@ export default class KeeplyBot {
         duration: 2500,
       });
     } catch {
+      // В случае ошибки скрываем прогресс-бар
+      progressElement.classList.add('hidden');
+
       this._notificationManager.show({
         message: 'Произошла ошибка при скачивании вложений',
         type: 'error',

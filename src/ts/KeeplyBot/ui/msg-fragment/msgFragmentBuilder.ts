@@ -534,12 +534,35 @@ export function buildMessageFragment(
       className: 'chat__message-item',
       id: msg.id,
       children: [
+        // Тело сообщения
         {
           tag: 'div',
           className: 'chat__message-body',
           children: bodyChildren,
         },
-        buildDropdownConfig(msg),
+
+        // Обертка для элементов управления сообщением
+        {
+          tag: 'div',
+          className: 'chat__message-side-wrapper',
+          children: [
+            {
+              tag: 'div',
+              className: 'chat__message-download-progress hidden',
+              children: [
+                {
+                  tag: 'span',
+                  className: [
+                    'chat__message-download-progress-text',
+                    'material-symbols-outlined',
+                  ],
+                  text: 'download',
+                },
+              ],
+            },
+            buildDropdownConfig(msg),
+          ],
+        },
       ],
     });
     fragment.append(messageItem);
