@@ -7,6 +7,7 @@ import 'simplelightbox/dist/simple-lightbox.css';
 import createElement from '../../../utils/createElementFunction';
 import { IUserMessageCard } from '../../shared/interfaces';
 import { buildMessageFragment } from '../msg-fragment/msgFragmentBuilder';
+import PinnedMessageManager from '../../managers/PinnedMessageManager';
 
 /**
  * Класс для управления отображением чата и его состоянием
@@ -69,6 +70,7 @@ export default class ChatRenderer {
    * @param {IUserMessageCard[]} messages - Массив карточек сообщений
    * для отображения
    * @param {Function} initDownloadHandlers - Функция инициализации обработчиков скачивания
+   * @param {string | null} pinnedMessageId - ID закрепленного сообщения
    *
    * @description
    * 1. Очищает текущее содержимое чата
@@ -85,7 +87,8 @@ export default class ChatRenderer {
    */
   render(
     messages: IUserMessageCard[],
-    initDownloadHandlers?: (fragment: DocumentFragment) => void
+    initDownloadHandlers?: (fragment: DocumentFragment) => void,
+    pinnedMessageId: string | null = null
   ): void {
     this._chatContent?.replaceChildren();
 
@@ -102,7 +105,7 @@ export default class ChatRenderer {
       tag: 'ul',
       className: 'chat__messages-list',
     });
-    const fragment = buildMessageFragment(messages);
+    const fragment = buildMessageFragment(messages, pinnedMessageId);
     if (initDownloadHandlers) {
       initDownloadHandlers(fragment);
     }
@@ -111,5 +114,8 @@ export default class ChatRenderer {
 
     // Инициализация SimpleLightbox для изображений в каждом сообщении
     this._initSimpleLightbox(list);
+
+    // Обновляем состояние кнопок закрепления после рендеринга
+    new PinnedMessageManager().updatePinButtonsUI(pinnedMessageId);
   }
 }

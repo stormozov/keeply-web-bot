@@ -1,0 +1,51 @@
+@use '../utils/flex-patterns' as *;
+@use '../settings/functions' as *;
+
+.pinned-message {
+  position: absolute;
+  bottom: -48px;
+  left: 0;
+  z-index: 2;
+  cursor: pointer;
+  opacity: 1;
+  transition: all 0.3s ease-in-out;
+  transform: translateY(0);
+
+  @include flex-between-center;
+  gap: spacing('xs');
+
+  padding: spacing('xs', 'xs');
+  width: size('full');
+  background-color: color('white');
+  border: 1px solid color('border-divider');
+  border-radius: radius('mdl');
+
+  color: color('text-primary');
+
+  &.hidden {
+    opacity: 0;
+    transform: translateY(-60px);
+    z-index: -1;
+  }
+
+  &:hover {
+    border-color: color('primary');
+    color: color('primary');
+  }
+
+  &__content {
+    @include flex-align-center-gap(spacing('xs'));
+  }
+
+  &__close {
+    background-color: color('transparent');
+    border-radius: radius('sm');
+    color: inherit;
+
+    &:hover {
+      transform: rotate(360deg);
+      background: rgba($color: color('primary'), $alpha: 0.24);
+      color: color('text-primary');
+    }
+  }
+}

@@ -428,11 +428,15 @@ function buildMessageBodyConfig(
  * Создает конфигурацию выпадающего меню.
  *
  * @param {IUserMessageCard} msg - Объект карточки сообщения для условного рендера кнопки скачивания.
+ * @param {string | null} pinnedMessageId - ID закрепленного сообщения для определения состояния кнопки.
  * @returns {ICreateElementOptions} Конфигурация выпадающего меню.
  *
  * @see {@link ICreateElementOptions} - Интерфейс для конфигурации элемента
  */
-function buildDropdownConfig(msg: IUserMessageCard): ICreateElementOptions {
+function buildDropdownConfig(
+  msg: IUserMessageCard,
+  pinnedMessageId: string | null = null
+): ICreateElementOptions {
   const dropdownItems: ICreateElementOptions[] = [];
 
   // Условно добавляем кнопку "Скачать вложения" только если есть файлы
@@ -466,6 +470,36 @@ function buildDropdownConfig(msg: IUserMessageCard): ICreateElementOptions {
       ],
     });
   }
+
+  // Добавляем кнопку закрепления/открепления
+  const isPinned = pinnedMessageId === msg.id;
+  dropdownItems.push({
+    tag: 'li',
+    className: 'msg-dropdown__item',
+    children: [
+      {
+        tag: 'button',
+        className: [
+          'msg-dropdown__button',
+          isPinned
+            ? 'msg-dropdown__button--unpin'
+            : 'msg-dropdown__button--pin',
+        ],
+        children: [
+          {
+            tag: 'span',
+            className: ['msg-dropdown__icon', 'material-symbols-outlined'],
+            text: isPinned ? 'keep_off' : 'keep',
+          },
+          {
+            tag: 'span',
+            className: 'msg-dropdown__text',
+            text: isPinned ? 'Открепить' : 'Закрепить',
+          },
+        ],
+      },
+    ],
+  });
 
   // Всегда добавляем кнопку "Удалить"
   dropdownItems.push({
@@ -523,7 +557,8 @@ function buildDropdownConfig(msg: IUserMessageCard): ICreateElementOptions {
  */
 
 export function buildMessageFragment(
-  messages: IUserMessageCard[]
+  messages: IUserMessageCard[],
+  pinnedMessageId?: string | null
 ): DocumentFragment {
   const fragment = document.createDocumentFragment();
 
@@ -560,7 +595,7 @@ export function buildMessageFragment(
                 },
               ],
             },
-            buildDropdownConfig(msg),
+            buildDropdownConfig(msg, pinnedMessageId),
           ],
         },
       ],

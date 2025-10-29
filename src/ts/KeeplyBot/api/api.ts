@@ -205,6 +205,48 @@ export const deleteAllMessages = async (): Promise<boolean> => {
 };
 
 /**
+ * Получает позицию сообщения в общем списке сообщений.
+ *
+ * Эта функция отправляет GET-запрос к эндпоинту
+ * `/api/messages/{messageId}/position` и возвращает индекс сообщения
+ * в отсортированном массиве (от 0 до total-1, где 0 - самое старое сообщение).
+ *
+ * @param {string} messageId - Уникальный идентификатор сообщения. Должен
+ * быть непустой строкой.
+ * @returns {Promise<number | null>} - Индекс сообщения или null, если сообщение
+ * не найдено
+ *
+ * @throws {Error} - Если запрос не удался, сервер вернул ошибку или messageId
+ * пуст
+ */
+export const getMessagePosition = async (
+  messageId: string
+): Promise<number | null> => {
+  if (!messageId) {
+    throw new Error('fetchMessagePosition: messageId is required');
+  }
+
+  try {
+    const response = await fetch(`${URL}/api/messages/${messageId}/position`);
+    if (!response.ok) {
+      let errorMessage = `Failed to fetch message position. Status: ${response.status}`;
+      try {
+        const errorData = await response.json().catch(() => ({}));
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // Игнорируем ошибки при парсинге тела ошибки
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data.success ? data.position : null;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Скачивает вложения сообщения в виде ZIP-архива.
  *
  * Эта функция отправляет GET-запрос к эндпоинту
