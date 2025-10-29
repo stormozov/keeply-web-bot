@@ -59,11 +59,19 @@
     }
 
     &-body {
+      transition: border-color 0.3s ease;
+
       @include flex-col-gap(spacing('lg'));
+
       padding: spacing('md');
       width: size('full');
       border-radius: radius('md');
       background-color: color('white');
+      border: 1px solid color('transparent');
+
+      &--highlighted {
+        border-color: color('primary');
+      }
     }
 
     &-link {

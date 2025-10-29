@@ -177,8 +177,12 @@ export default class PinnedMessageManager {
    */
   async scrollToPinnedMessage(): Promise<void> {
     if (!this._pinnedMessageId) return;
+
     const messageElement = document.getElementById(this._pinnedMessageId);
-    messageElement?.scrollIntoView({ behavior: 'smooth' });
+    if (!messageElement) return;
+
+    messageElement.scrollIntoView({ behavior: 'smooth' });
+    this._highlightMessageTemporarily(messageElement);
   }
 
   /**
@@ -282,6 +286,26 @@ export default class PinnedMessageManager {
       duration: 2500,
       position: 'bottom-center',
     });
+  }
+
+  /**
+   * Показывает выделение сообщения после плавного перемещения к нему с помощью
+   * клика по закрепленному сообщению.
+   *
+   * @param {HTMLElement} messageElement - Элемент сообщения
+   */
+  private _highlightMessageTemporarily(messageElement: HTMLElement): void {
+    const highlightElement = 'chat__message-body';
+    const messageBody = messageElement.querySelector(`.${highlightElement}`);
+    if (!(messageBody instanceof HTMLElement)) return;
+
+    const highlightClass = `${highlightElement}--highlighted`;
+
+    // Добавляем временную подцветку
+    messageBody.classList.add(highlightClass);
+
+    // Убираем подцветку через 2 секунды
+    setTimeout(() => messageBody.classList.remove(highlightClass), 2000);
   }
 
   /**
