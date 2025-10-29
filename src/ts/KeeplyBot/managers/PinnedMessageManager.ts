@@ -191,50 +191,36 @@ export default class PinnedMessageManager {
    * @param {string | null} pinnedMessageId - ID закрепленного сообщения
    */
   static updatePinButtonsUI(pinnedMessageId: string | null): void {
-    // Обновляем классы для всех кнопок закрепления
-    const pinButtons = document.querySelectorAll('.msg-dropdown__button--pin');
-    const unpinButtons = document.querySelectorAll(
-      '.msg-dropdown__button--unpin'
+    const messageItems = document.querySelectorAll<HTMLElement>(
+      '.chat__message-item'
     );
 
-    pinButtons.forEach((button) => {
-      const messageElement = button.closest('.chat__message-item');
-      if (messageElement) {
-        const messageId = messageElement.id;
-        if (messageId === pinnedMessageId) {
-          // Если сообщение закреплено, меняем класс на unpin
-          button.classList.remove('msg-dropdown__button--pin');
-          button.classList.add('msg-dropdown__button--unpin');
-          const icon = button.querySelector('.msg-dropdown__icon');
-          const text = button.querySelector('.msg-dropdown__text');
-          if (icon) icon.textContent = 'keep_off';
-          if (text) text.textContent = 'Открепить';
-        } else {
-          // Если не закреплено, оставляем pin
-          button.classList.add('msg-dropdown__button--pin');
-          button.classList.remove('msg-dropdown__button--unpin');
-          const icon = button.querySelector('.msg-dropdown__icon');
-          const text = button.querySelector('.msg-dropdown__text');
-          if (icon) icon.textContent = 'keep';
-          if (text) text.textContent = 'Закрепить';
-        }
-      }
-    });
+    messageItems.forEach((messageItem) => {
+      const messageId = messageItem.id;
+      if (!messageId) return;
 
-    unpinButtons.forEach((button) => {
-      const messageElement = button.closest('.chat__message-item');
-      if (messageElement) {
-        const messageId = messageElement.id;
-        if (messageId !== pinnedMessageId) {
-          // Если сообщение не закреплено, меняем класс на pin
-          button.classList.remove('msg-dropdown__button--unpin');
-          button.classList.add('msg-dropdown__button--pin');
-          const icon = button.querySelector('.msg-dropdown__icon');
-          const text = button.querySelector('.msg-dropdown__text');
-          if (icon) icon.textContent = 'keep';
-          if (text) text.textContent = 'Закрепить';
-        }
-      }
+      const button = messageItem.querySelector<HTMLElement>(
+        '.msg-dropdown__button--pin, .msg-dropdown__button--unpin'
+      );
+      if (!button) return;
+
+      const isPinned = messageId === pinnedMessageId;
+
+      // Сброс классов
+      button.classList.remove(
+        'msg-dropdown__button--pin',
+        'msg-dropdown__button--unpin'
+      );
+      // Установка нужного класса
+      button.classList.add(
+        isPinned ? 'msg-dropdown__button--unpin' : 'msg-dropdown__button--pin'
+      );
+
+      const icon = button.querySelector('.msg-dropdown__icon');
+      const text = button.querySelector('.msg-dropdown__text');
+
+      if (icon) icon.textContent = isPinned ? 'keep_off' : 'keep';
+      if (text) text.textContent = isPinned ? 'Открепить' : 'Закрепить';
     });
   }
 
