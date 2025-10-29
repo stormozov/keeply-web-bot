@@ -14,6 +14,7 @@ import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
 import { DragAndDropManager } from './managers/DragAndDropManager';
 import LazyLoader from './managers/LazyLoader';
+import PinnedMessageManager from './managers/PinnedMessageManager';
 import SidebarManager from './managers/SidebarManager';
 import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
@@ -55,6 +56,7 @@ export default class KeeplyBot {
   private _messageService: MessageService;
   private _capabilitiesManager: CapabilitiesManager;
   private _attachmentManager: AttachmentManager;
+  private _pinnedMessageManager: PinnedMessageManager;
   private _sidebarManager!: SidebarManager;
   private _lazyLoader!: LazyLoader | null;
   private _dragDropManager!: DragAndDropManager | null;
@@ -90,6 +92,7 @@ export default class KeeplyBot {
 
     this._renderer = new ChatRenderer(this._chatContent, this._emptyBlock);
     this._notificationManager = new NotificationManager();
+    this._pinnedMessageManager = new PinnedMessageManager();
     this._sidebarManager = new SidebarManager(this._rootElement, this._botUi);
   }
 
@@ -139,6 +142,8 @@ export default class KeeplyBot {
     this._initMessageDeleteHandler();
     this._initSidebarHandlers();
     this._initMsgDropdownToggleHandler();
+    this._initPinnedMessageHandler();
+    this._initPinnedMessageManager();
     this._updateSendButtonState();
   }
 
@@ -211,6 +216,11 @@ export default class KeeplyBot {
 
         this._lazyLoader?.appendNewMessages(newMessage);
         this._lazyLoader?.reset();
+        if (this._lazyLoader) {
+          this._pinnedMessageManager.updateRendererWithPinnedMessage(
+            this._initDownloadHandlers.bind(this)
+          );
+        }
         this._renderer.scrollToBottom(this._chatFeedWrap);
         // Показываем уведомление об успешной отправке
         notifyConfig = {
@@ -616,6 +626,11 @@ export default class KeeplyBot {
         messageElement.remove();
         this._lazyLoader?.removeMessage(messageId);
 
+        // Если удаляемое сообщение было закреплено, открепляем его
+        if (this._pinnedMessageManager.getPinnedMessage() === messageId) {
+          this._pinnedMessageManager.setPinnedMessage(null);
+        }
+
         messageElement.removeEventListener(
           'transitionend',
           handleTransitionEnd
@@ -665,6 +680,67 @@ export default class KeeplyBot {
       );
       openLists?.forEach((list) => list.classList.add(HIDDEN_SELECTOR));
     });
+
+    // ОБРАБОТЧИК клика по кнопкам закрепления/открепления
+    this._chatContent?.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (
+        !target.closest('.msg-dropdown__button--pin') &&
+        !target.closest('.msg-dropdown__button--unpin')
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+
+      const messageElement = target.closest('.chat__message-item');
+      if (!(messageElement instanceof HTMLElement)) return;
+
+      const messageId = messageElement.id;
+      if (!messageId) return;
+
+      if (target.closest('.msg-dropdown__button--pin')) {
+        // Закрепить сообщение
+        this._pinnedMessageManager.setPinnedMessage(messageId);
+      } else if (target.closest('.msg-dropdown__button--unpin')) {
+        // Открепить сообщение
+        this._pinnedMessageManager.setPinnedMessage(null);
+      }
+
+      // Закрываем dropdown после действия
+      const dropdown = target.closest(DROPDOWN_SELECTOR);
+      if (dropdown) {
+        const list = dropdown.querySelector(LIST_SELECTOR);
+        if (list) list.classList.add(HIDDEN_SELECTOR);
+      }
+    });
+  }
+
+  /**
+   * Инициализация обработчиков для закрепленного сообщения.
+   */
+  private _initPinnedMessageHandler(): void {
+    this._pinnedMessageManager.initPinnedMessageHandler();
+  }
+
+  /**
+   * Инициализация менеджера закрепленных сообщений.
+   */
+  private _initPinnedMessageManager(): void {
+    if (
+      this._lazyLoader &&
+      this._renderer &&
+      this._chatContent &&
+      this._chatFeedWrap
+    ) {
+      this._pinnedMessageManager.setDependencies(
+        this._lazyLoader,
+        this._renderer,
+        this._chatContent,
+        this._chatFeedWrap
+      );
+      this._pinnedMessageManager.initPinButtonHandlers();
+    }
   }
 
   /**
@@ -706,6 +782,9 @@ export default class KeeplyBot {
 
         if (isSuccess) {
           this._lazyLoader?.clear();
+
+          // Очищаем закрепленное сообщение при очистке чата
+          this._pinnedMessageManager.setPinnedMessage(null);
 
           // Показываем уведомление об успехе
           notification = {
@@ -814,8 +893,7 @@ export default class KeeplyBot {
       // Загружаем начальные сообщения через LazyLoader
       await this._lazyLoader.loadInitial();
 
-      this._renderer.render(
-        this._lazyLoader.getMessages(),
+      this._pinnedMessageManager.updateRendererWithPinnedMessage(
         this._initDownloadHandlers.bind(this)
       );
       this._renderer.scrollToBottom(this._chatFeedWrap);
@@ -825,9 +903,15 @@ export default class KeeplyBot {
       this._sidebarManager.updateClearChatButtonState(hasMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
-      this._renderer.render([], this._initDownloadHandlers.bind(this));
+      this._renderer.render([], this._initDownloadHandlers.bind(this), null);
       // При ошибке загрузки считаем чат пустым
       this._sidebarManager.updateClearChatButtonState(false);
+
+      // Если сообщения не загрузились, но есть закрепленное сообщение из localStorage,
+      // очищаем его, так как сообщение могло быть удалено
+      if (this._pinnedMessageManager.getPinnedMessage()) {
+        this._pinnedMessageManager.setPinnedMessage(null);
+      }
     }
   }
 
@@ -845,7 +929,12 @@ export default class KeeplyBot {
       (allMessages: IUserMessageCard[]) => {
         this._renderer.render(
           allMessages,
-          this._initDownloadHandlers.bind(this)
+          this._initDownloadHandlers.bind(this),
+          this._pinnedMessageManager.getPinnedMessage()
+        );
+        this._pinnedMessageManager.updatePinnedMessageUI();
+        PinnedMessageManager.updatePinButtonsUI(
+          this._pinnedMessageManager.getPinnedMessage()
         );
         // Обновляем состояние кнопки "Очистить чат" при изменении сообщений
         this._sidebarManager.updateClearChatButtonState(allMessages.length > 0);

@@ -3,6 +3,8 @@
 @use '../settings/functions' as *;
 
 .header {
+  position: relative;
+
   padding: spacing('xs', 'xs');
   margin: spacing('sm');
   background-color: color('white');
