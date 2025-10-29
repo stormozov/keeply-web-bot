@@ -98,6 +98,66 @@ export default class LazyLoader {
   }
 
   /**
+   * Подгружает сообщения порциями вверх, пока не найдёт сообщение с указанным
+   * ID.
+   *
+   * @param {string} messageId - ID сообщения, до которого нужно подгрузить
+   *
+   * @return {boolean}
+   * - true, если сообщение найдено;
+   * - false — если достигнут конец истории.
+   */
+  async loadUntilMessageId(messageId: string): Promise<boolean> {
+    // Проверяем, есть ли уже
+    if (this._messages.some((msg) => msg.id === messageId)) return true;
+
+    // Максимальное количество попыток (защита от бесконечного цикла)
+    const maxAttempts = 100;
+    let attempts = 0;
+
+    while (this._hasMore && attempts < maxAttempts) {
+      if (this._isLoading) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      this._isLoading = true;
+      try {
+        const newMessages = await this._messageService.loadMoreMessages(
+          this._currentOffset,
+          this._messagePerPage
+        );
+
+        if (newMessages.length === 0) {
+          this._hasMore = false;
+          break;
+        }
+
+        // Добавляем новые сообщения в начало
+        this._messages = [...newMessages, ...this._messages];
+        this._currentOffset += newMessages.length;
+
+        // Проверяем наличие целевого сообщения
+        if (this._messages.some((msg) => msg.id === messageId)) {
+          this._onUpdate(this._messages);
+          return true;
+        }
+
+        // Обновляем UI (например, для индикатора "загрузка...")
+        this._onUpdate(this._messages);
+      } catch (error) {
+        console.error('Error during auto-load for pinned message:', error);
+        break;
+      } finally {
+        this._isLoading = false;
+      }
+
+      attempts++;
+    }
+
+    return false;
+  }
+
+  /**
    * Подключает обработчик события прокрутки
    *
    * @description

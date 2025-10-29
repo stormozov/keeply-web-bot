@@ -703,7 +703,8 @@ export default class KeeplyBot {
         this._renderer,
         this._chatContent,
         this._chatFeedWrap,
-        this._notificationManager
+        this._notificationManager,
+        this._messageService
       );
       this._pinnedMessageManager.initPinButtonHandlers();
     }

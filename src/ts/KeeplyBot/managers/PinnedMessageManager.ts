@@ -2,6 +2,7 @@
 // Менеджер закрепленных сообщений
 // =============================================================================
 
+import MessageService from '../services/MessageService';
 import ChatRenderer from '../ui/chat-renderer/ChatRenderer';
 import NotificationManager from '../ui/notifications/NotificationManager';
 import LazyLoader from './LazyLoader';
@@ -54,6 +55,7 @@ export default class PinnedMessageManager {
   private _chatContent!: HTMLElement | null;
   private _chatFeedWrap!: HTMLElement | null;
   private _notificationManager!: NotificationManager | null;
+  private _messageService!: MessageService | null;
 
   /**
    * Создает экземпляр PinnedMessageManager
@@ -78,13 +80,15 @@ export default class PinnedMessageManager {
     renderer: ChatRenderer,
     chatContent: HTMLElement,
     chatFeedWrap: HTMLElement,
-    notificationManager: NotificationManager
+    notificationManager: NotificationManager,
+    messageService: MessageService
   ): void {
     this._lazyLoader = lazyLoader;
     this._renderer = renderer;
     this._chatContent = chatContent;
     this._chatFeedWrap = chatFeedWrap;
     this._notificationManager = notificationManager;
+    this._messageService = messageService;
   }
 
   /**
@@ -173,16 +177,35 @@ export default class PinnedMessageManager {
   }
 
   /**
-   * Скролл к закрепленному сообщению
+   * Скролл к закрепленному сообщению с автоматической подгрузкой,
+   * если оно ещё не загружено
    */
   async scrollToPinnedMessage(): Promise<void> {
-    if (!this._pinnedMessageId) return;
+    if (!this._pinnedMessageId || !this._lazyLoader || !this._renderer) return;
 
+    // 1. Гарантируем, что сообщение загружено
+    const isFound = await this._lazyLoader.loadUntilMessageId(
+      this._pinnedMessageId
+    );
+    if (!isFound) {
+      this._showNotification('Сообщение не найдено');
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // 2. Даем браузеру время на рендер нового DOM
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // 3. Находим элемент и выполняем прокрутку
     const messageElement = document.getElementById(this._pinnedMessageId);
-    if (!messageElement) return;
-
-    messageElement.scrollIntoView({ behavior: 'smooth' });
-    this._highlightMessageTemporarily(messageElement);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this._highlightMessageTemporarily(messageElement);
+    } else {
+      console.warn('Message element not found in DOM after loading');
+      this._showNotification('Не удалось прокрутить к сообщению');
+    }
   }
 
   /**

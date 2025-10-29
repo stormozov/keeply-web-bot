@@ -1,4 +1,9 @@
-import { fetchCapabilities, fetchMessages, sendMessage } from '../api/api';
+import {
+  fetchCapabilities,
+  fetchMessages,
+  getMessagePosition,
+  sendMessage,
+} from '../api/api';
 import { IBotCapabilities, IUserMessageCard } from '../shared/interfaces';
 
 /**
@@ -78,6 +83,28 @@ export default class MessageService {
     onUploadProgress?: (progress: number) => void
   ): Promise<IUserMessageCard[]> {
     return await sendMessage(text, files, onUploadProgress);
+  }
+
+  /**
+   * Получает позицию сообщения в общем списке сообщений
+   *
+   * @param {string} messageId - Уникальный идентификатор сообщения
+   *
+   * @returns {Promise<number | null>} Обещание, разрешающееся в индекс
+   * сообщения (от 0 до total-1, где 0 - самое старое) или null, если
+   * сообщение не найдено
+   *
+   * @example
+   * const position = await service.getMessagePosition('123e4567-e89b-12d3-a456-426614174000');
+   * console.log('Позиция сообщения:', position);
+   */
+  async getMessagePosition(messageId: string): Promise<number | null> {
+    try {
+      return await getMessagePosition(messageId);
+    } catch (error) {
+      console.error('Error getting message position:', error);
+      return null;
+    }
   }
 
   /**
