@@ -1,3 +1,4 @@
+@use '../utils/mixins' as *;
 @use '../utils/flex-patterns' as *;
 @use '../settings/functions' as *;
 
@@ -14,6 +15,47 @@ body {
 #App {
   @include flex-col;
   height: size('screen-h');
+
+  // Drag & Drop зона
+  &.drag-over {
+    &::before {
+      content: 'Максимум 9 файлов\A Каждый до 10MB\A Общий размер до 100MB\A Типы: изображения, видео, аудио';
+
+      @include absolute-center;
+      z-index: 101;
+      pointer-events: none;
+
+      padding: spacing('xs', 'sm');
+      background-color: color('white');
+      border-radius: radius('lg');
+
+      font-size: font-size('lg');
+      font-weight: font-weight('bold');
+      color: color('text-primary');
+      line-height: 1.4em;
+      text-align: center;
+      white-space: pre-line;
+    }
+
+    &::after {
+      content: '';
+
+      position: absolute;
+      top: spacing('xs');
+      left: spacing('xs');
+      right: spacing('xs');
+      bottom: spacing('xs');
+      z-index: 100;
+
+      background-color: rgba(color('primary'), 0.2);
+      border: 2px dashed color('primary');
+      border-radius: radius('lg');
+    }
+
+    .chat__feed-wrap > * {
+      opacity: 0.5;
+    }
+  }
 }
 
 .container {

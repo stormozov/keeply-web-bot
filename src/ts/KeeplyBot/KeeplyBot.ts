@@ -37,6 +37,7 @@ import NotificationManager, {
  */
 export default class KeeplyBot {
   // UI-элементы (инициализируются из корневого элемента)
+  private _chat!: HTMLElement | null;
   private _chatForm!: HTMLFormElement | null;
   private _chatTextarea!: HTMLTextAreaElement | null;
   private _chatSendButton!: HTMLButtonElement | null;
@@ -110,6 +111,7 @@ export default class KeeplyBot {
     if (!this._appElement) {
       console.error(`Chat root element not found: ${root}`);
     }
+    this._chat = this._appElement.querySelector('.chat');
     this._chatForm = root.querySelector('.chat__form');
     this._chatTextarea = root.querySelector('.chat__textarea');
     this._chatSendButton = root.querySelector('.chat__submit');
