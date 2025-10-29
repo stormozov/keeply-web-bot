@@ -626,7 +626,7 @@ export default class KeeplyBot {
         this._lazyLoader?.removeMessage(messageId);
 
         // Если удаляемое сообщение было закреплено, открепляем его
-        if (this._pinnedMessageManager.getPinnedMessage() === messageId) {
+        if (this._pinnedMessageManager.getPinnedMessageId() === messageId) {
           this._pinnedMessageManager.setPinnedMessage(null);
         }
 
@@ -878,7 +878,7 @@ export default class KeeplyBot {
 
       // Если сообщения не загрузились, но есть закрепленное сообщение из localStorage,
       // очищаем его, так как сообщение могло быть удалено
-      if (this._pinnedMessageManager.getPinnedMessage()) {
+      if (this._pinnedMessageManager.getPinnedMessageId()) {
         this._pinnedMessageManager.setPinnedMessage(null);
       }
     }
@@ -899,11 +899,11 @@ export default class KeeplyBot {
         this._renderer.render(
           allMessages,
           this._initDownloadHandlers.bind(this),
-          this._pinnedMessageManager.getPinnedMessage()
+          this._pinnedMessageManager.getPinnedMessageId()
         );
         this._pinnedMessageManager.updatePinnedMessageUI();
         this._pinnedMessageManager.updatePinButtonsUI(
-          this._pinnedMessageManager.getPinnedMessage()
+          this._pinnedMessageManager.getPinnedMessageId()
         );
         // Обновляем состояние кнопки "Очистить чат" при изменении сообщений
         this._sidebarManager.updateClearChatButtonState(allMessages.length > 0);

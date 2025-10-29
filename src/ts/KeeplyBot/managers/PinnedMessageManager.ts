@@ -168,33 +168,8 @@ export default class PinnedMessageManager {
   /**
    * Получение ID закрепленного сообщения
    */
-  getPinnedMessage(): string | null {
+  getPinnedMessageId(): string | null {
     return this._pinnedMessageId;
-  }
-
-  /**
-   * Обновление UI закрепленного сообщения
-   */
-  updatePinnedMessageUI(): void {
-    const pinnedBlock = document.querySelector(this._selectors.pinnedMessage);
-    if (!(pinnedBlock instanceof HTMLElement)) return;
-
-    if (this._pinnedMessageId) {
-      pinnedBlock.classList.remove('hidden');
-      // Найти сообщение в данных и обновить текст
-      const messages = this._lazyLoader?.getMessages() || [];
-      const pinnedMessage = messages.find((msg) => {
-        return msg.id === this._pinnedMessageId;
-      });
-      const textElement = pinnedBlock.querySelector(
-        this._selectors.pinnedMessageText
-      );
-      if (textElement && pinnedMessage) {
-        textElement.textContent = this._pinnedDefaultMessage;
-      }
-    } else {
-      pinnedBlock.classList.add('hidden');
-    }
   }
 
   /**
@@ -224,6 +199,32 @@ export default class PinnedMessageManager {
     );
     this.updatePinnedMessageUI();
     this.updatePinButtonsUI(this._pinnedMessageId);
+  }
+
+  /**
+   * Обновление UI закрепленного сообщения
+   */
+  updatePinnedMessageUI(): void {
+    const pinnedBlock = document.querySelector(this._selectors.pinnedMessage);
+    if (!(pinnedBlock instanceof HTMLElement)) return;
+
+    if (!this._pinnedMessageId) {
+      pinnedBlock.classList.add('hidden');
+      return;
+    }
+
+    pinnedBlock.classList.remove('hidden');
+
+    const messages = this._lazyLoader?.getMessages() || [];
+    const pinnedMessage = messages.find((msg) => {
+      return msg.id === this._pinnedMessageId;
+    });
+    if (!pinnedMessage) return;
+
+    const textElement = pinnedBlock.querySelector(
+      this._selectors.pinnedMessageText
+    );
+    if (textElement) textElement.textContent = this._pinnedDefaultMessage;
   }
 
   /**
