@@ -3,6 +3,7 @@
 // =============================================================================
 
 import ChatRenderer from '../ui/chat-renderer/ChatRenderer';
+import NotificationManager from '../ui/notifications/NotificationManager';
 import LazyLoader from './LazyLoader';
 
 /**
@@ -17,15 +18,42 @@ import LazyLoader from './LazyLoader';
  * - Скролла к закрепленному сообщению
  */
 export default class PinnedMessageManager {
+  // Селекторы для элементов UI
+  private readonly _selectors = {
+    // Селекторы закрепленного сообщения
+    pinnedMessage: '.pinned-message',
+    pinnedMessageClose: '.pinned-message__close',
+    // Селекторы выпадающего меню
+    msgDropdownButtonPin: '.msg-dropdown__button--pin',
+    msgDropdownButtonUnpin: '.msg-dropdown__button--unpin',
+    chatMessageItem: '.chat__message-item',
+    msgDropdown: '.msg-dropdown',
+    msgDropdownList: '.msg-dropdown__list',
+    pinnedMessageText: '.pinned-message__text',
+    msgDropdownIcon: '.msg-dropdown__icon',
+    msgDropdownText: '.msg-dropdown__text',
+  };
+
+  // Сообщение закрепленного сообщения по умолчанию
+  private readonly _pinnedDefaultMessage = 'Закрепленное сообщение';
+
+  // Сообщения для уведомлений
+  private readonly _notificationMessages = {
+    pinned: 'Сообщение закреплено',
+    unpinned: 'Сообщение откреплено',
+  };
+
   // Состояние закрепленного сообщения
   private _pinnedMessageId!: string | null;
   private readonly _pinnedMessageKey = 'keeply_pinned_message';
+  private _pinClickHandler!: ((e: Event) => void) | null;
 
   // Зависимости
   private _lazyLoader!: LazyLoader | null;
   private _renderer!: ChatRenderer | null;
   private _chatContent!: HTMLElement | null;
   private _chatFeedWrap!: HTMLElement | null;
+  private _notificationManager!: NotificationManager | null;
 
   /**
    * Создает экземпляр PinnedMessageManager
@@ -42,31 +70,35 @@ export default class PinnedMessageManager {
    * @param {HTMLElement} chatContent - Элемент контента чата для обработки
    * событий
    * @param {HTMLElement} chatFeedWrap - Элемент обертки ленты чата для скролла
+   * @param {NotificationManager} notificationManager - NotificationManager для
+   * показа уведомлений
    */
   setDependencies(
     lazyLoader: LazyLoader,
     renderer: ChatRenderer,
     chatContent: HTMLElement,
-    chatFeedWrap: HTMLElement
+    chatFeedWrap: HTMLElement,
+    notificationManager: NotificationManager
   ): void {
     this._lazyLoader = lazyLoader;
     this._renderer = renderer;
     this._chatContent = chatContent;
     this._chatFeedWrap = chatFeedWrap;
+    this._notificationManager = notificationManager;
   }
 
   /**
    * Инициализирует обработчики событий для закрепленных сообщений
    */
   initPinnedMessageHandler(): void {
-    const pinnedBlock = document.querySelector('.pinned-message');
+    const pinnedBlock = document.querySelector(this._selectors.pinnedMessage);
     if (!pinnedBlock) return;
 
     // Обработчик клика по блоку закрепленного сообщения
     pinnedBlock.addEventListener('click', (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
-      if (target.closest('.pinned-message__close')) {
+      if (target.closest(this._selectors.pinnedMessageClose)) {
         this.setPinnedMessage(null);
       }
       void this.scrollToPinnedMessage();
@@ -80,38 +112,45 @@ export default class PinnedMessageManager {
   initPinButtonHandlers(): void {
     if (!this._chatContent) return;
 
-    // ОБРАБОТЧИК клика по кнопкам закрепления/открепления
-    this._chatContent.addEventListener('click', (e) => {
+    // Удаляем предыдущий обработчик, чтобы избежать дублирования
+    if (this._pinClickHandler) {
+      this._chatContent.removeEventListener('click', this._pinClickHandler);
+    }
+
+    this._pinClickHandler = (e): void => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
-      if (
-        !target.closest('.msg-dropdown__button--pin') &&
-        !target.closest('.msg-dropdown__button--unpin')
-      ) {
-        return;
-      }
+
+      const pinButton = target.closest(this._selectors.msgDropdownButtonPin);
+      const unpinButton = target.closest(
+        this._selectors.msgDropdownButtonUnpin
+      );
+
+      if (!pinButton && !unpinButton) return;
 
       e.preventDefault();
 
-      const messageElement = target.closest('.chat__message-item');
+      const messageElement = target.closest(this._selectors.chatMessageItem);
       if (!(messageElement instanceof HTMLElement)) return;
 
       const messageId = messageElement.id;
       if (!messageId) return;
 
-      if (target.closest('.msg-dropdown__button--pin')) {
-        // Закрепить сообщение
+      if (pinButton) {
         this.setPinnedMessage(messageId);
-      } else if (target.closest('.msg-dropdown__button--unpin')) {
-        // Открепить сообщение
+        this._showNotification(this._notificationMessages.pinned);
+      } else if (unpinButton) {
         this.setPinnedMessage(null);
+        this._showNotification(this._notificationMessages.unpinned);
       }
 
       // Закрываем dropdown после действия
-      const dropdown = target.closest('.msg-dropdown');
-      const list = dropdown?.querySelector('.msg-dropdown__list');
+      const dropdown = target.closest(this._selectors.msgDropdown);
+      const list = dropdown?.querySelector(this._selectors.msgDropdownList);
       if (list) list.classList.add('hidden');
-    });
+    };
+
+    this._chatContent.addEventListener('click', this._pinClickHandler);
   }
 
   /**
@@ -123,7 +162,7 @@ export default class PinnedMessageManager {
     this._pinnedMessageId = messageId;
     this._savePinnedMessageToStorage();
     this.updatePinnedMessageUI();
-    PinnedMessageManager.updatePinButtonsUI(messageId);
+    this.updatePinButtonsUI(messageId);
   }
 
   /**
@@ -137,7 +176,7 @@ export default class PinnedMessageManager {
    * Обновление UI закрепленного сообщения
    */
   updatePinnedMessageUI(): void {
-    const pinnedBlock = document.querySelector('.pinned-message');
+    const pinnedBlock = document.querySelector(this._selectors.pinnedMessage);
     if (!(pinnedBlock instanceof HTMLElement)) return;
 
     if (this._pinnedMessageId) {
@@ -147,9 +186,11 @@ export default class PinnedMessageManager {
       const pinnedMessage = messages.find((msg) => {
         return msg.id === this._pinnedMessageId;
       });
-      const textElement = pinnedBlock.querySelector('.pinned-message__text');
+      const textElement = pinnedBlock.querySelector(
+        this._selectors.pinnedMessageText
+      );
       if (textElement && pinnedMessage) {
-        textElement.textContent = 'Закрепленное сообщение';
+        textElement.textContent = this._pinnedDefaultMessage;
       }
     } else {
       pinnedBlock.classList.add('hidden');
@@ -182,7 +223,7 @@ export default class PinnedMessageManager {
       this._pinnedMessageId
     );
     this.updatePinnedMessageUI();
-    PinnedMessageManager.updatePinButtonsUI(this._pinnedMessageId);
+    this.updatePinButtonsUI(this._pinnedMessageId);
   }
 
   /**
@@ -190,9 +231,9 @@ export default class PinnedMessageManager {
    *
    * @param {string | null} pinnedMessageId - ID закрепленного сообщения
    */
-  static updatePinButtonsUI(pinnedMessageId: string | null): void {
+  updatePinButtonsUI(pinnedMessageId: string | null): void {
     const messageItems = document.querySelectorAll<HTMLElement>(
-      '.chat__message-item'
+      this._selectors.chatMessageItem
     );
 
     messageItems.forEach((messageItem) => {
@@ -200,7 +241,7 @@ export default class PinnedMessageManager {
       if (!messageId) return;
 
       const button = messageItem.querySelector<HTMLElement>(
-        '.msg-dropdown__button--pin, .msg-dropdown__button--unpin'
+        `${this._selectors.msgDropdownButtonPin}, ${this._selectors.msgDropdownButtonUnpin}`
       );
       if (!button) return;
 
@@ -208,19 +249,37 @@ export default class PinnedMessageManager {
 
       // Сброс классов
       button.classList.remove(
-        'msg-dropdown__button--pin',
-        'msg-dropdown__button--unpin'
+        this._selectors.msgDropdownButtonPin.slice(1),
+        this._selectors.msgDropdownButtonUnpin.slice(1)
       );
       // Установка нужного класса
       button.classList.add(
-        isPinned ? 'msg-dropdown__button--unpin' : 'msg-dropdown__button--pin'
+        isPinned
+          ? this._selectors.msgDropdownButtonUnpin.slice(1)
+          : this._selectors.msgDropdownButtonPin.slice(1)
       );
 
-      const icon = button.querySelector('.msg-dropdown__icon');
-      const text = button.querySelector('.msg-dropdown__text');
+      const icon = button.querySelector(this._selectors.msgDropdownIcon);
+      const text = button.querySelector(this._selectors.msgDropdownText);
 
       if (icon) icon.textContent = isPinned ? 'keep_off' : 'keep';
       if (text) text.textContent = isPinned ? 'Открепить' : 'Закрепить';
+    });
+  }
+
+  /**
+   * Отображение уведомления
+   *
+   * @param {string} message - Текст уведомления
+   *
+   * @see {@link NotificationManager} - Менеджер уведомлений
+   */
+  private _showNotification(message: string): void {
+    this._notificationManager?.show({
+      message,
+      type: 'info',
+      duration: 2500,
+      position: 'bottom-center',
     });
   }
 

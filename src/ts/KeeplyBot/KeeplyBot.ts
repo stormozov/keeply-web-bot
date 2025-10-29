@@ -143,7 +143,6 @@ export default class KeeplyBot {
     this._initSidebarHandlers();
     this._initMsgDropdownToggleHandler();
     this._initPinnedMessageHandler();
-    this._initPinnedMessageManager();
     this._updateSendButtonState();
   }
 
@@ -680,40 +679,6 @@ export default class KeeplyBot {
       );
       openLists?.forEach((list) => list.classList.add(HIDDEN_SELECTOR));
     });
-
-    // ОБРАБОТЧИК клика по кнопкам закрепления/открепления
-    this._chatContent?.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest('.msg-dropdown__button--pin') &&
-        !target.closest('.msg-dropdown__button--unpin')
-      ) {
-        return;
-      }
-
-      e.preventDefault();
-
-      const messageElement = target.closest('.chat__message-item');
-      if (!(messageElement instanceof HTMLElement)) return;
-
-      const messageId = messageElement.id;
-      if (!messageId) return;
-
-      if (target.closest('.msg-dropdown__button--pin')) {
-        // Закрепить сообщение
-        this._pinnedMessageManager.setPinnedMessage(messageId);
-      } else if (target.closest('.msg-dropdown__button--unpin')) {
-        // Открепить сообщение
-        this._pinnedMessageManager.setPinnedMessage(null);
-      }
-
-      // Закрываем dropdown после действия
-      const dropdown = target.closest(DROPDOWN_SELECTOR);
-      if (dropdown) {
-        const list = dropdown.querySelector(LIST_SELECTOR);
-        if (list) list.classList.add(HIDDEN_SELECTOR);
-      }
-    });
   }
 
   /**
@@ -737,7 +702,8 @@ export default class KeeplyBot {
         this._lazyLoader,
         this._renderer,
         this._chatContent,
-        this._chatFeedWrap
+        this._chatFeedWrap,
+        this._notificationManager
       );
       this._pinnedMessageManager.initPinButtonHandlers();
     }
@@ -901,6 +867,9 @@ export default class KeeplyBot {
       // Обновляем состояние кнопки "Очистить чат"
       const hasMessages = this._lazyLoader.getMessages().length > 0;
       this._sidebarManager.updateClearChatButtonState(hasMessages);
+
+      // Инициализируем обработчики для закрепленных сообщений после загрузки сообщений
+      this._initPinnedMessageManager();
     } catch (error) {
       console.error('Failed to load messages:', error);
       this._renderer.render([], this._initDownloadHandlers.bind(this), null);
@@ -933,7 +902,7 @@ export default class KeeplyBot {
           this._pinnedMessageManager.getPinnedMessage()
         );
         this._pinnedMessageManager.updatePinnedMessageUI();
-        PinnedMessageManager.updatePinButtonsUI(
+        this._pinnedMessageManager.updatePinButtonsUI(
           this._pinnedMessageManager.getPinnedMessage()
         );
         // Обновляем состояние кнопки "Очистить чат" при изменении сообщений

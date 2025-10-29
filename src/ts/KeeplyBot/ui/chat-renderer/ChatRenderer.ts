@@ -116,6 +116,6 @@ export default class ChatRenderer {
     this._initSimpleLightbox(list);
 
     // Обновляем состояние кнопок закрепления после рендеринга
-    PinnedMessageManager.updatePinButtonsUI(pinnedMessageId);
+    new PinnedMessageManager().updatePinButtonsUI(pinnedMessageId);
   }
 }
