@@ -268,41 +268,6 @@
     }
   }
 
-  // Блок "Скелет загрузки данных"
-  &__skeleton {
-    &.hidden {
-      display: none;
-    }
-
-    .skeleton__item {
-      margin-bottom: spacing('md');
-      padding: spacing('md');
-      border-radius: radius('md');
-      background-color: color('bg-secondary');
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-    }
-
-    .skeleton__text {
-      height: 16px;
-      background-color: color('text-third');
-      border-radius: radius('sm');
-      margin-bottom: spacing('xs');
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-
-    .skeleton__timestamp {
-      height: 12px;
-      width: 60%;
-      background-color: color('text-third');
-      border-radius: radius('sm');
-      animation: pulse 1.5s ease-in-out infinite;
-      animation-delay: 0.2s;
-    }
-  }
-
   // Блок "Нет сообщений"
   &__empty {
     &-block {

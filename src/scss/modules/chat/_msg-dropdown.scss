@@ -32,7 +32,7 @@
       display: block;
       opacity: 0;
       transform: translateY(48px);
-      z-index: -1;
+      visibility: hidden;
     }
 
     &:not(.hidden) {

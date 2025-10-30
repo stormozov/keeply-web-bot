@@ -35,6 +35,7 @@
                   type="text"
                   autocomplete="off"
                   placeholder="Поиск сообщений"
+                  disabled
                 />
               </div>
             </form>
@@ -42,6 +43,7 @@
             <div class="header__btns">
               <button
                 class="btn btn--second-ghost header__btn header__btn-favorites"
+                disabled
               >
                 <span class="btn__icon material-symbols-outlined">
                   favorite
@@ -51,6 +53,7 @@
 
               <button
                 class="btn btn--second-ghost header__btn header__btn-attachments"
+                disabled
               >
                 <span class="btn__icon material-symbols-outlined">
                   attach_file
@@ -60,6 +63,7 @@
 
               <button
                 class="btn btn--second-ghost header__btn header__btn-settings"
+                disabled
               >
                 <span class="btn__icon material-symbols-outlined">
                   settings
@@ -125,7 +129,10 @@
                   autocomplete="off"
                 ></textarea>
 
-                <button class="btn btn--secondary chat__btn chat__btn-help">
+                <button
+                  class="btn btn--secondary chat__btn chat__btn-help"
+                  disabled
+                >
                   <span class="btn__icon material-symbols-outlined">
                     question_mark
                   </span>

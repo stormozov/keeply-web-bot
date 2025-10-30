@@ -97,10 +97,6 @@ export default class ChatRenderer {
       this._chatContent?.append(this._emptyBlock);
     }
 
-    if (this._emptyBlock instanceof HTMLElement) {
-      this._emptyBlock.style.display = 'none';
-    }
-
     const list = createElement({
       tag: 'ul',
       className: 'chat__messages-list',

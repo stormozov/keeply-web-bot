@@ -878,12 +878,6 @@ export default class KeeplyBot {
       this._renderer.render([], this._initDownloadHandlers.bind(this), null);
       // При ошибке загрузки считаем чат пустым
       this._sidebarManager.updateClearChatButtonState(false);
-
-      // Если сообщения не загрузились, но есть закрепленное сообщение из localStorage,
-      // очищаем его, так как сообщение могло быть удалено
-      if (this._pinnedMessageManager.getPinnedMessageId()) {
-        this._pinnedMessageManager.setPinnedMessage(null);
-      }
     }
   }
 
