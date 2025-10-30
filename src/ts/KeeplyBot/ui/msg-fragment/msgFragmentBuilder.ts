@@ -20,7 +20,7 @@ import {
  * @see {@link https://linkify.js.org/docs/options.html} - Документация linkifyHtml
  */
 const linkifyOptions = {
-  className: 'chat__message-link',
+  className: 'chat__message-link link--glide-underline',
   rel: 'noopener noreferrer',
   target: '_blank',
   truncate: 50,

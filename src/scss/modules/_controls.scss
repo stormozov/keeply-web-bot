@@ -13,25 +13,29 @@ a {
   position: relative;
   color: color('primary');
 
-  &::after {
-    content: '';
-
-    position: absolute;
-    bottom: -3px;
-    left: 0;
-    display: block;
-    transition: width 0.3s ease-in-out;
-
-    width: 0;
-    height: 1px;
-    background-color: color('accent');
-  }
-
   &:hover {
     color: color('accent');
+  }
 
-    &::after {
-      width: size('full');
+  &.link {
+    &--glide-underline {
+      &::after {
+        content: '';
+
+        position: absolute;
+        bottom: -3px;
+        left: 0;
+        display: block;
+        transition: width 0.3s ease-in-out;
+
+        width: 0;
+        height: 1px;
+        background-color: color('accent');
+      }
+
+      &:hover::after {
+        width: size('full');
+      }
     }
   }
 }

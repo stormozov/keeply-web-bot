@@ -29,12 +29,10 @@ export default class FileDownloadHandler {
    * 4. Выполняет загрузку файла через метод _downloadFile
    */
   handle(event: Event): void {
-    event.preventDefault();
-
     const target = event.target;
-    if (!(target instanceof Element)) return;
+    if (!(target instanceof HTMLElement)) return;
 
-    const button = target.closest(this._btnClass) as HTMLElement | null;
+    const button = target.closest(this._btnClass);
     if (!button) return;
 
     const url = button.getAttribute('data-url');
