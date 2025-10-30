@@ -10,6 +10,10 @@
   &__form-container {
     padding: spacing('sm', '0');
     position: relative;
+
+    .container {
+      padding: 0;
+    }
   }
 
   &__form {

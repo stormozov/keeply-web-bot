@@ -219,11 +219,10 @@ export default class PinnedMessageManager {
   ): void {
     if (!this._renderer || !this._lazyLoader) return;
 
-    this._renderer.render(
-      this._lazyLoader.getMessages(),
-      initDownloadHandlers,
-      this._pinnedMessageId
-    );
+    this._renderer.render(this._lazyLoader.getMessages(), {
+      pinnedMessageId: this._pinnedMessageId,
+      initDownloadHandlers: initDownloadHandlers,
+    });
     this.updatePinnedMessageUI();
     this.updatePinButtonsUI(this._pinnedMessageId);
   }

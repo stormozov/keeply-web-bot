@@ -20,6 +20,15 @@ export interface IBotUiStructure {
   sidebar: ISidebarStructure;
 }
 
+/**
+ * Интерфейс для опций при рендеринге UI-элементов
+ */
+export interface IRenderOptions {
+  container?: HTMLElement | null;
+  pinnedMessageId?: string | null;
+  initDownloadHandlers?: (fragment: DocumentFragment) => void;
+}
+
 // =============================================================================
 // Интерфейсы для сообщений от пользователя
 // =============================================================================

@@ -875,7 +875,11 @@ export default class KeeplyBot {
       this._initPinnedMessageManager();
     } catch (error) {
       console.error('Failed to load messages:', error);
-      this._renderer.render([], this._initDownloadHandlers.bind(this), null);
+
+      this._renderer.render([], {
+        initDownloadHandlers: this._initDownloadHandlers.bind(this),
+      });
+
       // При ошибке загрузки считаем чат пустым
       this._sidebarManager.updateClearChatButtonState(false);
     }
@@ -893,15 +897,16 @@ export default class KeeplyBot {
       this._chatFeedWrap,
       this._messageService,
       (allMessages: IUserMessageCard[]) => {
-        this._renderer.render(
-          allMessages,
-          this._initDownloadHandlers.bind(this),
-          this._pinnedMessageManager.getPinnedMessageId()
-        );
+        const pinnedMessageId = this._pinnedMessageManager.getPinnedMessageId();
+
+        this._renderer.render(allMessages, {
+          pinnedMessageId: pinnedMessageId,
+          initDownloadHandlers: this._initDownloadHandlers.bind(this),
+        });
+
         this._pinnedMessageManager.updatePinnedMessageUI();
-        this._pinnedMessageManager.updatePinButtonsUI(
-          this._pinnedMessageManager.getPinnedMessageId()
-        );
+        this._pinnedMessageManager.updatePinButtonsUI(pinnedMessageId);
+
         // Обновляем состояние кнопки "Очистить чат" при изменении сообщений
         this._sidebarManager.updateClearChatButtonState(allMessages.length > 0);
       },
