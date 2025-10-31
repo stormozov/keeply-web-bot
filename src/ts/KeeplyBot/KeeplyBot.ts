@@ -42,6 +42,7 @@ export default class KeeplyBot {
   private _chatTextarea!: HTMLTextAreaElement | null;
   private _chatSendButton!: HTMLButtonElement | null;
   private _chatAttachButton!: HTMLButtonElement | null;
+  private _chatHelpButton!: HTMLButtonElement | null;
   private _chatAttachmentsPreview!: HTMLElement | null;
   private _chatContent!: HTMLElement | null;
   private _chatFeedWrap!: HTMLElement | null;
@@ -127,6 +128,7 @@ export default class KeeplyBot {
     this._chatTextarea = root.querySelector('.chat__textarea');
     this._chatSendButton = root.querySelector('.chat__submit');
     this._chatAttachButton = root.querySelector('.chat__btn-attach');
+    this._chatHelpButton = root.querySelector('.chat__btn-help');
     this._chatAttachmentsPreview = root.querySelector('.form-att-prev');
     this._chatContent = root.querySelector('.chat__content');
     this._chatFeedWrap = root.querySelector('.chat__feed-wrap');
@@ -150,6 +152,7 @@ export default class KeeplyBot {
   private _handleEvents(): void {
     this._handleFormController();
     this._initAttachmentHandlers();
+    this._initHelpButtonHandler();
     this._initDragAndDrop();
     this._initFileDownloadHandler();
     this._initMessageDeleteHandler();
@@ -439,6 +442,38 @@ export default class KeeplyBot {
       this._chatAttachmentsPreview as HTMLElement
     );
     this._updateSendButtonState();
+  }
+
+  /**
+   * Инициализация обработчика клика по кнопке помощи
+   */
+  private _initHelpButtonHandler(): void {
+    if (!this._chatHelpButton) return;
+
+    this._chatHelpButton.addEventListener('click', async () => {
+      try {
+        const helpMessages = await this._messageService.getHelpMessage();
+        this._lazyLoader?.appendNewMessages(helpMessages);
+        this._lazyLoader?.reset();
+        this._renderer.scrollToBottom(this._chatFeedWrap);
+
+        // Показываем уведомление об успешной отправке
+        this._notificationManager.show({
+          message: 'Справочное сообщение получено',
+          type: 'success',
+          duration: 2500,
+          position: 'bottom-center',
+        });
+      } catch (error) {
+        console.error('Failed to fetch help message:', error);
+        this._notificationManager.show({
+          message: 'Произошла ошибка при получении справочного сообщения',
+          type: 'error',
+          duration: 2500,
+          position: 'bottom-center',
+        });
+      }
+    });
   }
 
   /**

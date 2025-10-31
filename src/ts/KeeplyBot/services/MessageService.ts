@@ -1,5 +1,6 @@
 import {
   fetchCapabilities,
+  fetchHelpMessage,
   fetchMessages,
   getMessagePosition,
   sendMessage,
@@ -125,6 +126,27 @@ export default class MessageService {
     } catch (error) {
       console.error('Error loading capabilities:', error);
       return {} as IBotCapabilities;
+    }
+  }
+
+  /**
+   * Получает сообщение со справочной информацией
+   *
+   * @returns {Promise<IUserMessageCard[]>} Обещание, разрешающееся
+   * в массив карточек сообщений
+   *
+   * @example
+   * const helpMessage = await service.getHelpMessage();
+   * console.log('Сообщение помощи:', helpMessage);
+   *
+   * @see {@link IUserMessageCard} - Интерфейс для карточек сообщений
+   */
+  async getHelpMessage(): Promise<IUserMessageCard[]> {
+    try {
+      return await fetchHelpMessage();
+    } catch (error) {
+      console.error('Error loading help message:', error);
+      return [];
     }
   }
 }

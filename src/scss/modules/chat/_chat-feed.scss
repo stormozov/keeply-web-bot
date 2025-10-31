@@ -40,11 +40,19 @@
       padding: spacing('md');
       width: size('full');
       border-radius: radius('md');
-      background-color: color('white');
       border: 1px solid color('transparent');
 
       &--highlighted {
         border-color: color('primary');
+      }
+
+      &--bot {
+        background-color: rgba($color: color('primary'), $alpha: 0.1);
+        border-color: rgba($color: color('primary'), $alpha: 0.2);
+      }
+
+      &--user {
+        background-color: color('white');
       }
     }
 
@@ -58,6 +66,22 @@
         margin-right: spacing('xxs');
         font-size: inherit;
       }
+    }
+
+    // Блок "Роль сообщения"
+    &-role-block {
+      cursor: default;
+      @include flex-align-center-gap(spacing('xs'));
+    }
+
+    &-role-icon {
+      width: size('xs');
+    }
+
+    &-role-text {
+      font-size: font-size('xs');
+      font-weight: font-weight('bold');
+      color: color('primary');
     }
 
     &-text {

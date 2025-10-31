@@ -16,6 +16,20 @@ const linkifyOptions = {
 };
 
 /**
+ * Создает конфигурацию для роли сообщения
+ *
+ * @param {string} role - Роль сообщения
+ * @returns {ICreateElementOptions} Конфигурация роли
+ */
+export function createRoleTextConfig(role: string): ICreateElementOptions {
+  return {
+    tag: 'span',
+    className: 'chat__message-role-text',
+    text: role,
+  };
+}
+
+/**
  * Создаёт конфигурацию для создания текста сообщения
  *
  * @param {text} text - Текст сообщения

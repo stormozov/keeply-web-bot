@@ -9,6 +9,7 @@ import { createMessageTextConfig, createTimestamp } from './atomicBlocks';
 import {
   createAudioFileItem,
   createImageFileItem,
+  createRoleBotBlock,
   createVideoFileItem,
 } from './compositeBlocks';
 import { createFileSection, createFilesContainer } from './sectionsContainers';
@@ -54,6 +55,8 @@ export function buildMessageBodyPartsConfig(
 ): ICreateElementOptions[] {
   const parts: ICreateElementOptions[] = [];
 
+  if (msg.sender === 'bot') parts.push(createRoleBotBlock('KeeplyBot'));
+
   if (msg.message?.trim()) parts.push(createMessageTextConfig(msg.message));
 
   if (msg.files?.length) {
@@ -81,6 +84,7 @@ export function buildMessageBodyPartsConfig(
   }
 
   parts.push(createTimestamp(msg.timestamp));
+
   return parts;
 }
 
@@ -93,9 +97,14 @@ export function buildMessageBodyPartsConfig(
 export function buildMessageBodyConfig(
   msg: IUserMessageCard
 ): ICreateElementOptions {
+  const msgRole =
+    msg.sender === 'bot'
+      ? 'chat__message-body--bot'
+      : 'chat__message-body--user';
+
   return {
     tag: 'div',
-    className: 'chat__message-body',
+    className: ['chat__message-body', msgRole],
     children: buildMessageBodyPartsConfig(msg),
   };
 }

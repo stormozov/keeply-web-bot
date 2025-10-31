@@ -10,9 +10,34 @@ import {
   createFileName,
   createFileSize,
   createImageElement,
+  createRoleTextConfig,
   createVideoElement,
   createZoomIcon,
 } from './atomicBlocks';
+
+/**
+ * Создает конфигурацию для создания блока роли сообщения
+ *
+ * @param {string} role - Роль сообщения
+ * @returns {ICreateElementOptions} Конфигурация блока роли
+ */
+export function createRoleBotBlock(role: string): ICreateElementOptions {
+  return {
+    tag: 'div',
+    className: 'chat__message-role-block',
+    children: [
+      {
+        tag: 'img',
+        className: 'chat__message-role-icon',
+        attrs: {
+          src: `./assets/images/robot.png`,
+          alt: role,
+        },
+      },
+      createRoleTextConfig(role),
+    ],
+  };
+}
 
 /**
  * Создаёт конфигурацию для создания элемента списка файлов изображений

@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { ICreateElementOptions } from '../../shared/interfaces';
+import { MessageType } from './types';
 
 /**
  * Интерфейс для структуры UI-элементов бота, которые настраиваются сервером
@@ -61,6 +62,7 @@ export interface IUserMessageCard {
   message: string;
   files: IMessageFile[];
   timestamp: string;
+  sender: MessageType;
 }
 
 /**

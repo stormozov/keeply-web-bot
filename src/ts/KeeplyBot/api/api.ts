@@ -275,3 +275,33 @@ export const downloadAttachments = async (
     throw error;
   }
 };
+
+/**
+ * Получает справочное сообщение от бота.
+ *
+ * Эта функция отправляет GET-запрос к эндпоинту `/api/messages/help`
+ * и возвращает массив сообщений от бота.
+ *
+ * @returns {Promise<IUserMessageCard[]>} - Массив сообщений от бота
+ *
+ * @throws {Error} - Если запрос не удался или сервер вернул ошибку
+ */
+export const fetchHelpMessage = async (): Promise<IUserMessageCard[]> => {
+  try {
+    const response = await fetch(`${URL}/api/messages/help`);
+    if (!response.ok) {
+      let errorMessage = `Failed to fetch help message. Status: ${response.status}`;
+      try {
+        const errorData = await response.json().catch(() => ({}));
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // Игнорируем ошибки при парсинге тела ошибки
+      }
+      throw new Error(errorMessage);
+    }
+    const data = await response.json();
+    return data.data || data;
+  } catch (error) {
+    throw error;
+  }
+};
