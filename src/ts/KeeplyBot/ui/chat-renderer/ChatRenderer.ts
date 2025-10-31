@@ -5,9 +5,9 @@
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.css';
 import createElement from '../../../utils/createElementFunction';
+import PinnedMessageManager from '../../managers/PinnedMessageManager';
 import { IRenderOptions, IUserMessageCard } from '../../shared/interfaces';
 import { buildMessageFragment } from '../msg-fragment/messageFragmentBuilder';
-import PinnedMessageManager from '../../managers/PinnedMessageManager';
 
 /**
  * Класс для управления отображением чата и его состоянием
@@ -20,6 +20,11 @@ import PinnedMessageManager from '../../managers/PinnedMessageManager';
  */
 export default class ChatRenderer {
   /**
+   * Кнопка скролла к нижней границе чата
+   */
+  private _scrollToBottomButton: HTMLElement | null = null;
+
+  /**
    * Создает экземпляр ChatRenderer
    *
    * @param {HTMLElement | null} _chatContent - Контейнер для отображения сообщ.
@@ -28,21 +33,82 @@ export default class ChatRenderer {
   constructor(
     private readonly _chatContent: HTMLElement | null,
     private readonly _emptyBlock: HTMLElement | null
-  ) {}
+  ) {
+    this._initScrollToBottomButton();
+  }
+
+  /**
+   * Инициализирует кнопку скролла к нижней границе
+   */
+  private _initScrollToBottomButton(): void {
+    if (!this._chatContent) return;
+
+    // Создаем HTML-элемент кнопки
+    this._scrollToBottomButton = createElement({
+      tag: 'button',
+      className: 'chat__scroll-to-bottom hidden',
+      attrs: {
+        type: 'button',
+        'aria-label': 'Прокрутить к нижней границе чата',
+      },
+      children: [
+        {
+          tag: 'span',
+          className: 'material-symbols-outlined',
+          text: 'expand_more',
+        },
+      ],
+    });
+
+    // Добавляем кнопку в DOM выше формы
+    const chatFeedWrap = document.querySelector('.chat__feed-wrap');
+    if (chatFeedWrap && this._scrollToBottomButton) {
+      chatFeedWrap.parentElement?.insertBefore(
+        this._scrollToBottomButton,
+        chatFeedWrap
+      );
+    }
+
+    // Обработчик клика
+    this._scrollToBottomButton?.addEventListener('click', () => {
+      const container = document.querySelector(
+        '.chat__feed-wrap'
+      ) as HTMLElement;
+      this.scrollToBottom(container);
+    });
+  }
+
+  /**
+   * Показывает или скрывает кнопку скролла в зависимости от позиции прокрутки
+   */
+  updateScrollToBottomButtonVisibility(container: HTMLElement | null): void {
+    if (!this._scrollToBottomButton || !container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+
+    this._scrollToBottomButton.classList.toggle('hidden', isAtBottom);
+  }
 
   /**
    * Прокручивает чат до самого последнего сообщения.
    *
    * @param {HTMLElement} container - Контейнер для прокрутки.
+   * @param {boolean} smooth - Использовать плавную прокрутку (по умолчанию true).
    */
-  scrollToBottom(container: HTMLElement | null): void {
+  scrollToBottom(container: HTMLElement | null, smooth: boolean = true): void {
     if (!container) {
       console.warn(
         `ChatRenderer (scrollToBottom): Контейнер ${container} не найден`
       );
       return;
     }
-    container.scrollTop = container.scrollHeight;
+
+    // Прокрутка к нижней границе
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: smooth ? 'smooth' : 'auto',
+    });
   }
 
   /**

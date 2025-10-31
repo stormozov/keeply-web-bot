@@ -44,6 +44,7 @@ export default class LazyLoader {
   private _messageService: MessageService;
   private _onUpdate: OnMessagesUpdate;
   private _scrollHandler: ScrollHandler = null;
+  private _scrollButtonVisibilityHandler: ScrollHandler = null;
   private readonly _messagePerPage: number;
   private readonly _scrollThreshold: number;
 
@@ -166,7 +167,14 @@ export default class LazyLoader {
    */
   attachScrollListener(): void {
     this._scrollHandler = this._handleScroll.bind(this);
+    this._scrollButtonVisibilityHandler =
+      this._handleScrollButtonVisibility.bind(this);
+
     this._scrollContainer.addEventListener('scroll', this._scrollHandler);
+    this._scrollContainer.addEventListener(
+      'scroll',
+      this._scrollButtonVisibilityHandler
+    );
   }
 
   /**
@@ -176,9 +184,18 @@ export default class LazyLoader {
    * Удаляет слушатель 'scroll' из контейнера и сбрасывает ссылку на обработчик
    */
   dispose(): void {
-    if (!this._scrollHandler) return;
-    this._scrollContainer.removeEventListener('scroll', this._scrollHandler);
-    this._scrollHandler = null;
+    if (this._scrollHandler) {
+      this._scrollContainer.removeEventListener('scroll', this._scrollHandler);
+      this._scrollHandler = null;
+    }
+
+    if (this._scrollButtonVisibilityHandler) {
+      this._scrollContainer.removeEventListener(
+        'scroll',
+        this._scrollButtonVisibilityHandler
+      );
+      this._scrollButtonVisibilityHandler = null;
+    }
   }
 
   /**
@@ -279,6 +296,18 @@ export default class LazyLoader {
       console.error('Ошибка загрузки сообщений:', error);
     } finally {
       this._isLoading = false;
+    }
+  }
+
+  /**
+   * Обработчик события прокрутки для управления видимостью кнопки скролла
+   *
+   * @param {Event} event - Событие прокрутки
+   */
+  private _handleScrollButtonVisibility(event: Event): void {
+    if (!(event.target instanceof HTMLElement)) return;
+    if (window.updateScrollButtonVisibility) {
+      window.updateScrollButtonVisibility();
     }
   }
 }

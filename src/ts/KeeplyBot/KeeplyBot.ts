@@ -68,6 +68,9 @@ export default class KeeplyBot {
   // UI
   private _renderer!: ChatRenderer;
 
+  // Callback для обновления видимости кнопки скролла
+  private _updateScrollButtonVisibility: (() => void) | null = null;
+
   // Обработчики
   private _fileDownloadHandler!: FileDownloadHandler;
   private _notificationManager!: NotificationManager;
@@ -95,6 +98,14 @@ export default class KeeplyBot {
     this._notificationManager = new NotificationManager();
     this._pinnedMessageManager = new PinnedMessageManager();
     this._sidebarManager = new SidebarManager(this._rootElement, this._botUi);
+
+    // Устанавливаем callback для обновления видимости кнопки скролла
+    this._updateScrollButtonVisibility = (): void => {
+      this._renderer.updateScrollToBottomButtonVisibility(this._chatFeedWrap);
+    };
+
+    // Устанавливаем глобальный callback для LazyLoader
+    window.updateScrollButtonVisibility = this._updateScrollButtonVisibility;
   }
 
   /**
@@ -865,7 +876,7 @@ export default class KeeplyBot {
       this._pinnedMessageManager.updateRendererWithPinnedMessage(
         this._initDownloadHandlers.bind(this)
       );
-      this._renderer.scrollToBottom(this._chatFeedWrap);
+      this._renderer.scrollToBottom(this._chatFeedWrap, false);
 
       // Обновляем состояние кнопки "Очистить чат"
       const hasMessages = this._lazyLoader.getMessages().length > 0;
@@ -909,6 +920,9 @@ export default class KeeplyBot {
 
         // Обновляем состояние кнопки "Очистить чат" при изменении сообщений
         this._sidebarManager.updateClearChatButtonState(allMessages.length > 0);
+
+        // Обновляем видимость кнопки скролла
+        this._updateScrollButtonVisibility?.();
       },
       { messagePerPage: this._messagePerPage }
     );

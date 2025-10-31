@@ -310,6 +310,53 @@
       }
     }
   }
+
+  &__scroll-to-bottom {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    transition:
+      background-color 0.3s ease,
+      transform 0.2s ease,
+      opacity 0.3s ease;
+    z-index: 1;
+    cursor: pointer;
+
+    @include flex-center;
+
+    width: 48px;
+    height: 48px;
+    background-color: color('text-primary');
+    border: 2px solid color('white');
+    border-radius: radius('full');
+
+    font-size: font-size('xl');
+    color: color('white');
+
+    &:hover {
+      transform: translateX(-50%) scale(1.1);
+      background-color: color('accent');
+
+      .material-symbols-outlined {
+        transform: translateY(-2px);
+      }
+    }
+
+    &:active {
+      transform: translateX(-50%) scale(0.95);
+    }
+
+    &.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .material-symbols-outlined {
+      transition: transform 0.2s ease;
+      font-size: inherit;
+    }
+  }
 }
 
 @keyframes pulse {
