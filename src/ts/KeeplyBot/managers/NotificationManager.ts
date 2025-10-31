@@ -2,7 +2,7 @@
 // Модуль для управления всплывающими уведомлениями
 // =============================================================================
 
-import createElement from '../../../utils/createElementFunction';
+import createElement from '../../utils/createElementFunction';
 
 /**
  * Типы уведомлений

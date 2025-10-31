@@ -14,15 +14,15 @@ import { AttachmentManager } from './managers/AttachmentManager';
 import { CapabilitiesManager } from './managers/CapabilitiesManager';
 import { DragAndDropManager } from './managers/DragAndDropManager';
 import LazyLoader from './managers/LazyLoader';
+import NotificationManager, {
+  INotificationConfig,
+} from './managers/NotificationManager';
 import PinnedMessageManager from './managers/PinnedMessageManager';
 import SidebarManager from './managers/SidebarManager';
 import MessageService from './services/MessageService';
 import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
 import { FileType } from './shared/types';
 import ChatRenderer from './ui/chat-renderer/ChatRenderer';
-import NotificationManager, {
-  INotificationConfig,
-} from './ui/notifications/NotificationManager';
 
 /**
  * Основной класс для управления функциональностью чат-бота Keeply

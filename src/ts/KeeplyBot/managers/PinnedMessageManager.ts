@@ -4,8 +4,8 @@
 
 import MessageService from '../services/MessageService';
 import ChatRenderer from '../ui/chat-renderer/ChatRenderer';
-import NotificationManager from '../ui/notifications/NotificationManager';
 import LazyLoader from './LazyLoader';
+import NotificationManager from './NotificationManager';
 
 /**
  * Класс для управления закрепленными сообщениями
