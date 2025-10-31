@@ -60,6 +60,10 @@
       }
     }
 
+    &-text {
+      white-space: pre-line;
+    }
+
     &-files {
       &-section {
         margin-bottom: spacing('md');
