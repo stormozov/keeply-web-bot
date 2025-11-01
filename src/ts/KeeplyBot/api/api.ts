@@ -4,7 +4,8 @@ import { IBotCapabilities, IUserMessageCard } from '../shared/interfaces';
 /**
  * URL-адрес сервера
  */
-export const SERVER_URL = process.env.SERVER_URL || 'http://localhost:7070';
+export const SERVER_URL =
+  process.env.SERVER_URL || process.env.BACKUP_SERVER_URL;
 const URL = SERVER_URL;
 
 /**
