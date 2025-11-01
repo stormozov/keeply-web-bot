@@ -20,7 +20,11 @@ import NotificationManager, {
 import PinnedMessageManager from './managers/PinnedMessageManager';
 import SidebarManager from './managers/SidebarManager';
 import MessageService from './services/MessageService';
-import { IBotUiStructure, IUserMessageCard } from './shared/interfaces';
+import {
+  IBotUiStructure,
+  IKeeplyBotDependencies,
+  IUserMessageCard,
+} from './shared/interfaces';
 import { FileType } from './shared/types';
 import ChatRenderer from './ui/chat-renderer/ChatRenderer';
 
@@ -82,11 +86,15 @@ export default class KeeplyBot {
   constructor(
     private readonly _rootElement: HTMLElement,
     private readonly _botUi: IBotUiStructure,
-    messageService: MessageService,
-    capabilitiesManager: CapabilitiesManager,
-    attachmentManager: AttachmentManager,
-    fileDownloadHandler: FileDownloadHandler
+    private readonly _deps: IKeeplyBotDependencies
   ) {
+    const {
+      messageService,
+      capabilitiesManager,
+      attachmentManager,
+      fileDownloadHandler,
+    } = _deps;
+
     this._messageService = messageService;
     this._capabilitiesManager = capabilitiesManager;
     this._attachmentManager = attachmentManager;

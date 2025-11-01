@@ -16,19 +16,19 @@ import { extractBotUiStructure } from '../utils/uiStructureExtractor';
  * @returns {KeeplyBot} настроенный экземпляр KeeplyBot
  */
 export function createKeeplyBot(rootElement: HTMLElement): KeeplyBot {
+  // Зависимости для KeeplyBot
   const messageService = new MessageService();
   const capabilitiesManager = new CapabilitiesManager(messageService);
   const attachmentManager = new AttachmentManager();
   const fileDownloadHandler = new FileDownloadHandler();
 
+  // Структура UI
   const botUi = extractBotUiStructure(rootElement);
 
-  return new KeeplyBot(
-    rootElement,
-    botUi,
+  return new KeeplyBot(rootElement, botUi, {
     messageService,
     capabilitiesManager,
     attachmentManager,
-    fileDownloadHandler
-  );
+    fileDownloadHandler,
+  });
 }

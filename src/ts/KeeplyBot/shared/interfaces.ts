@@ -3,7 +3,18 @@
 // =============================================================================
 
 import { ICreateElementOptions } from '../../shared/interfaces';
+import FileDownloadHandler from '../handlers/FileDownloadHandler';
+import { AttachmentManager } from '../managers/AttachmentManager';
+import { CapabilitiesManager } from '../managers/CapabilitiesManager';
+import MessageService from '../services/MessageService';
 import { MessageFormat, MessageType } from './types';
+
+export interface IKeeplyBotDependencies {
+  messageService: MessageService;
+  capabilitiesManager: CapabilitiesManager;
+  attachmentManager: AttachmentManager;
+  fileDownloadHandler: FileDownloadHandler;
+}
 
 /**
  * Интерфейс для структуры UI-элементов бота, которые настраиваются сервером
