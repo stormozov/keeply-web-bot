@@ -5,7 +5,11 @@
 import { ICreateElementOptions } from '../../../../shared/interfaces';
 import { SERVER_URL } from '../../../api/api';
 import { IFileTypeConfig, IUserMessageCard } from '../../../shared/interfaces';
-import { createMessageTextConfig, createTimestamp } from './atomicBlocks';
+import {
+  createMessageContentBlockConfig,
+  createMessageTextConfig,
+  createTimestamp,
+} from './atomicBlocks';
 import {
   createAudioFileItem,
   createImageFileItem,
@@ -55,10 +59,19 @@ export function buildMessageBodyPartsConfig(
 ): ICreateElementOptions[] {
   const parts: ICreateElementOptions[] = [];
 
+  // Добавляем роль отправителя сообщения
   if (msg.sender === 'bot') parts.push(createRoleBotBlock('KeeplyBot'));
 
-  if (msg.message?.trim()) parts.push(createMessageTextConfig(msg.message));
+  // Добавляем текст сообщения
+  if (msg.message?.trim()) {
+    if (msg.format === 'html') {
+      parts.push(createMessageContentBlockConfig(msg.message));
+    } else if (msg.format === 'text') {
+      parts.push(createMessageTextConfig(msg.message));
+    }
+  }
 
+  // Добавляем вложения
   if (msg.files?.length) {
     const buckets: Record<string, ICreateElementOptions[]> = {};
     for (const [type] of FILE_TYPE_CONFIG) buckets[type] = [];
@@ -83,6 +96,7 @@ export function buildMessageBodyPartsConfig(
     if (sections.length > 0) parts.push(createFilesContainer(sections));
   }
 
+  // Добавляем временную метку
   parts.push(createTimestamp(msg.timestamp));
 
   return parts;

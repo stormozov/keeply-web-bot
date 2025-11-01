@@ -204,3 +204,22 @@ export function createDownloadProgress(): ICreateElementOptions {
     ],
   };
 }
+
+/**
+ * Создаёт конфигурацию для создания контента сообщения
+ *
+ * @param {string} msg - Контент сообщения
+ * @returns {ICreateElementOptions} Конфигурация контента
+ *
+ * @description
+ * Используется для рендеринга html контента, полученного с сервера
+ */
+export function createMessageContentBlockConfig(
+  msg: string
+): ICreateElementOptions {
+  return {
+    tag: 'div',
+    className: 'chat__message-content-block',
+    html: msg,
+  };
+}

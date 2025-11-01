@@ -88,6 +88,26 @@
       white-space: pre-line;
     }
 
+    &-content-block {
+      *:not(:last-child):not(h3) {
+        margin-bottom: spacing('xs');
+      }
+
+      h3 {
+        margin: spacing('md', 'xs');
+        font-weight: font-weight('bold');
+      }
+
+      ul {
+        li {
+          &::before {
+            content: '•';
+            margin-right: spacing('xs');
+          }
+        }
+      }
+    }
+
     &-files {
       &-section {
         margin-bottom: spacing('md');

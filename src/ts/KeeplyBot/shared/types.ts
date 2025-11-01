@@ -11,3 +11,8 @@ export type FileType = 'image' | 'video' | 'audio';
  * Типы сообщений
  */
 export type MessageType = 'user' | 'bot';
+
+/**
+ * Форматы сообщений
+ */
+export type MessageFormat = 'text' | 'markdown' | 'html';
