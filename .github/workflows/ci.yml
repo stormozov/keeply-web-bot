@@ -53,9 +53,16 @@ jobs:
         with:
           node-version: 20
           cache: 'yarn'
+      
+      - name: Create .env file
+        run: |
+          cat > .env <<EOF
+          API_BASE_URL=${{ secrets.SERVER_URL }}
+          EOF
 
       - run: yarn
       - run: yarn build
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
